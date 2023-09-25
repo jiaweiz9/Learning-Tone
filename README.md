@@ -26,5 +26,40 @@ xz-utils tk-dev libffi-dev liblzma-dev python3-openssl git
 
 # Install pyenv
 curl https://pyenv.run | bash
+```
 
 Add pyenv to $PATH by adding the following lines to your profile or shell configuration file, for example ~/.bashrc or ~/.zshrc:
+
+```bash
+export PATH="$HOME/.pyenv/bin:$PATH"
+eval "$(pyenv init --path)"
+eval "$(pyenv virtualenv-init)"
+```
+
+Restart your shell:
+
+```bash
+exec "$SHELL"
+```
+
+### Usage
+Explain how to use your project. Provide examples.
+
+### Running the tests
+Explain how to run the automated tests for this system.
+
+### Deployment
+Add additional notes about how to deploy this on a live system.
+
+### Contributing
+Please read CONTRIBUTING.md for details on our code of conduct, and the process for submitting pull requests to us.
+
+### License
+This project is licensed under the MIT License - see the LICENSE.md file for details
+
+### Acknowledgments
+Hat tip to anyone whose code was used.
+Inspiration.
+etc.
+### Contact
+Provide your contact information or instructions on how to reach you.
