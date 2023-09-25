@@ -8,8 +8,21 @@ These instructions will get you a copy of the project up and running on your loc
 
 ### Prerequisites
 
-- List what things you need to install the software and how to install them.
-- Mention any system requirements, browser versions, etc.
+Before you proceed, ensure you have the following software installed on your machine.
+
+- `pyenv`: a tool to manage multiple Python versions.
+
+#### Installing pyenv
+
+Follow the instructions below to install `pyenv` on your machine.
+
+##### On Ubuntu
 
 ```bash
-pip install -r requirements.txt
+# Install prerequisites
+sudo apt-get install -y build-essential libssl-dev zlib1g-dev libbz2-dev \
+libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev \
+xz-utils tk-dev libffi-dev liblzma-dev python3-openssl git
+
+# Install pyenv
+curl https://pyenv.run | bash
