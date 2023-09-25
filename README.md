@@ -26,3 +26,5 @@ xz-utils tk-dev libffi-dev liblzma-dev python3-openssl git
 
 # Install pyenv
 curl https://pyenv.run | bash
+
+Add pyenv to $PATH by adding the following lines to your profile or shell configuration file, for example ~/.bashrc or ~/.zshrc:
