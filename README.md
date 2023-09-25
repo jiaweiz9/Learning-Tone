@@ -12,5 +12,4 @@ These instructions will get you a copy of the project up and running on your loc
 - Mention any system requirements, browser versions, etc.
 
 ```bash
-# Example
 pip install -r requirements.txt
