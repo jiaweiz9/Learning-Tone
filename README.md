@@ -62,4 +62,4 @@ Hat tip to anyone whose code was used.
 Inspiration.
 etc.
 ### Contact
-Provide your contact information or instructions on how to reach you.
+Taemoon Jeong, taemoon-jeong@korea.ac.kr
