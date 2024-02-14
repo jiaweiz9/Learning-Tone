@@ -12,7 +12,7 @@ Before you proceed, ensure you have the following software installed on your mac
 
 - `pyenv`: a tool to manage multiple Python versions.
 
-In here, we use 3.8.10 python version.
+In here, we use `3.8.10` version.
 
 #### Installing pyenv
 
