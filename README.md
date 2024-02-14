@@ -36,9 +36,11 @@ This installs all required packages as specified in `requirements.txt` file.
 
 ## Usage
 Our system utilizes the following hardware components:
-- PSYONIC Ability Hand mounted with a 6-DOF PAPRAS robot arm
+- PSYONIC Ability Hand
+- PAPRAS robot arm
 - ZOOM H6 Recorder
 - Eastar Drum Practice Pad (8-inch)
+- 
 Make sure to have these components set up and connected appropriately before running the software.
 
 ### Running the tests
