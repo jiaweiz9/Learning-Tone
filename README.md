@@ -8,7 +8,6 @@ Ensure `pyenv` and `pyenv-virtualenv` are installed on your system.
 If not, you can find installation instructions on the [`pyenv` GitHub page](https://github.com/pyenv/pyenv#installation) and the [`pyenv-virtualenv` GitHub page](https://github.com/pyenv/pyenv-virtualenv).
 
 ### Installing Python 3.8.10 with pyenv
-
 First, install Python 3.8.10 using `pyenv`:
 ```bash
 pyenv install 3.8.10
@@ -16,7 +15,10 @@ pyenv install 3.8.10
 
 ### Creating a Virtual Environment
 With `pyenv-virtualenv`, you can create a virtual environment for the installed Python version:
-
+```bash
+pyenv virtualenv 3.8.10 myproject-env
+```
+This command tells `pyenv` to use `myproject-env` as the active Python version in your project directory.
 
 
 
