@@ -34,7 +34,7 @@ pip install -r requirements.txt
 ```
 This installs all required packages as specified in `requirements.txt` file.
 
-### Usage
+## Usage
 Explain how to use your project. Provide examples.
 
 ### Running the tests
