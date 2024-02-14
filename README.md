@@ -18,7 +18,7 @@ With `pyenv-virtualenv`, you can create a virtual environment for the installed 
 ```bash
 pyenv virtualenv 3.8.10 myproject-env
 ```
-
+Replace `myproject-env` with a name that's relevant to your project. This command creates a virtual environment named `myproject-env` using Python 3.8.10.
 
 ### Activating the Virtual Environment
 To activate the virtual environment for your project, navigate to your project directory and set the local Python version to your virtual environment:
@@ -32,6 +32,7 @@ With the virtual environment activated, install your project's dependencies:
 ```bash
 pip install -r requirements.txt
 ```
+This installs all required packages as specified in `requirements.txt` file.
 
 ### Usage
 Explain how to use your project. Provide examples.
