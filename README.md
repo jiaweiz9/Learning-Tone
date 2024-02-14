@@ -44,6 +44,9 @@ Our system utilizes the following hardware components:
 Make sure to have these components set up and connected appropriately before running the software.
 
 ### Running the tests
+```bash
+python your_script.py --seed 111 --ref_audio_path ref_audio/ref_audio_final6.wav --record_duration 1 --samplerate 44100 --WANDB False
+```
 
 
 ### Contact
