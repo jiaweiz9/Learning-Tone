@@ -1,6 +1,6 @@
 # Making-sound-with-hand
 
-One Paragraph of project description goes here.
+Generating Realistic Sound with Prosthetic Hand: A Reinforcement Learning Approach [EMBC 2024 Submitted]
 
 ## Getting Started
 
