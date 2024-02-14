@@ -40,7 +40,7 @@ Our system utilizes the following hardware components:
 - PAPRAS robot arm
 - ZOOM H6 Recorder
 - Eastar Drum Practice Pad (8-inch)
-- 
+
 Make sure to have these components set up and connected appropriately before running the software.
 
 ### Running the tests
