@@ -3,11 +3,7 @@
 Generating Realistic Sound with Prosthetic Hand: A Reinforcement Learning Approach [EMBC 2024 Submitted]
 
 ## Getting Started
-
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
-
 ### Prerequisites
-
 Ensure `pyenv` and `pyenv-virtualenv` are installed on your system.
 If not, you can find installation instructions on the [`pyenv` GitHub page](https://github.com/pyenv/pyenv#installation) and the [`pyenv-virtualenv` GitHub page](https://github.com/pyenv/pyenv-virtualenv).
 
@@ -19,7 +15,6 @@ pyenv install 3.8.10
 ```
 
 ### Creating a Virtual Environment
-
 With `pyenv-virtualenv`, you can create a virtual environment for the installed Python version:
 
 
