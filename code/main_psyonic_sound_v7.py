@@ -38,35 +38,35 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--seed", default=222, type=int)
-    parser.add_argument('--min_vel', type=float, default=-7.4)
+    parser.add_argument("--seed", default=111, type=int)
+    parser.add_argument('--min_vel', type=float, default=-8.0)
     parser.add_argument('--max_vel', type=float, default=8.0)    
-    parser.add_argument('--out_min', type=float, default=0.187) # 0.087
-    parser.add_argument('--out_max', type=float, default=1.047) # 0.785 0.959 1.0467
+    parser.add_argument('--out_min', type=float, default=0.087) 
+    parser.add_argument('--out_max', type=float, default=1.047)
     parser.add_argument('--ref_audio_path', type=str, default='ref_audio/ref_audio_final6.wav')
     parser.add_argument('--max_iter', type=int, default=300)
     parser.add_argument('--ros_rate', type=int, default=50)
     parser.add_argument('--record_duration', type=int, default=1)
     
     parser.add_argument('--n_epi', type=int, default=40)
-    parser.add_argument('--k_epoch', type=int, default=10) # default = 10
+    parser.add_argument('--k_epoch', type=int, default=10)
     parser.add_argument('--max_pos', type=float, default=1.0)
     parser.add_argument('--obs_dim', type=int, default=6)
     parser.add_argument('--act_dim', type=int, default=1)
     
-    parser.add_argument('--h_dims', nargs="+", type=int, default=[64, 64]) # change this term
+    parser.add_argument('--h_dims', nargs="+", type=int, default=[128, 128]) # change this term
     parser.add_argument('--gamma', type=float, default=0.99)
-    parser.add_argument('--lmbda', type=float, default=0.95) #0.95
+    parser.add_argument('--lmbda', type=float, default=0.95)
 
     parser.add_argument('--lr_actorcritic', type=float, default=3e-4) # change this term 0.003 ~ 5e-6
-    parser.add_argument('--clip_ratio', type=float, default=0.2) #0.1, 0.2, 0.3
-    parser.add_argument('--value_coef', type=float, default=0.5) #0.5
-    parser.add_argument('--entropy_coef', type=float, default=0.01) # 0 ~0.01
+    parser.add_argument('--clip_ratio', type=float, default=0.2)
+    parser.add_argument('--value_coef', type=float, default=0.5)
+    parser.add_argument('--entropy_coef', type=float, default=0.01)
     parser.add_argument('--max_grad', type=float, default=0.5)
-    parser.add_argument('--samplerate', type=int, default=44100)
+    parser.add_argument('--samplerate', type=int, default=44100) # Audio sample rate
     parser.add_argument('--WANDB', type=bool, default=True)
     parser.add_argument('--folder', type=str, default='psyonic-experiment')
-    parser.add_argument('--weight_path', type=str, default='result/ppo/weights/') # 'result/ppo/weights/seed_111_test2_result'
+    parser.add_argument('--weight_path', type=str, default='result/ppo/weights/')
     parser.add_argument('--weight_iter_num', type=int, default='45')
     parser.add_argument('--SAVE_WEIGHTS', type=bool, default=True)
     args = parser.parse_args()

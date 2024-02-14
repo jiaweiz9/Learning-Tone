@@ -71,8 +71,8 @@ class PsyonicForReal():
                  name = "Learning Make Well-Sound for Real Robot",
                  ref_audio_path = 'ref_audio/ref_audio_human_1.wav',
                  out_min = 0.087,
-                 out_max = 0.785,
-                 seed = 0,
+                 out_max = 1.047,
+                 seed = 111,
                  ros_rate=50,
                  device_idx=0):
         self.ros_rate = ros_rate
@@ -97,27 +97,19 @@ class PsyonicForReal():
         
     # Calculation Functions
     def get_velocity(self, prev_action, curr_action):
-        vel = (curr_action - prev_action)
+        vel = (curr_action - prev_action)/(1/self.ros_rate) # 50HZ, ros_rate
         return vel
 
-    def vel_clip_action(self,prev_action,action,min_vel=-8.0,max_vel=8.0,HZ=50):
+    def vel_clip_action(self,prev_action,action,min_vel=-8.0,max_vel=8.0):
         vel = self.get_velocity(prev_action, action)
-        vel_clip = np.clip(vel,min_vel*(1/HZ),max_vel*(1/HZ)) # max = 8 rad/sec
+        vel_clip = np.clip(vel,min_vel,max_vel)
         delta_action = vel_clip*(1/(self.ros_rate))
         curr_action = prev_action + delta_action
         return curr_action, vel_clip
 
     def get_acceleration(self, prev_vel, curr_vel):
-        acc = (curr_vel - prev_vel)
+        acc = (curr_vel - prev_vel)/(1/self.ros_rate)
         return acc
-    
-    def butter_bandpas_filter(self, data, lowcut, highcut, fs, order=10):
-        nyquist = 0.5 * fs
-        low = lowcut / nyquist
-        high = highcut / nyquist
-        b, a = butter(order, [low, high], btype='band')
-        y = lfilter(b, a, data)
-        return y
 
     def update(self, 
                max_iter = 500,
@@ -125,20 +117,20 @@ class PsyonicForReal():
                record_duration=1,
                n_epi = 12,
                k_epoch = 10,
-               max_pos = 1.7, # max joint position radian
+               max_pos = 1.047, # max joint position radian
                obs_dim = 6, # one-finger joint position, velocity, acceleration, mean_amp
                act_dim = 1, # one-finger joint position
-               h_dims = [64, 64],
+               h_dims = [128, 128],
                gamma = 0.99,
                lmbda = 0.95,
-               lr_actorcritic = 3e-5,
+               lr_actorcritic = 3e-4,
                clip_ratio = 0.2, #0.1 0.2 0.3
                value_coef = 0.5,
                entropy_coef = 0.01,
                max_grad = 0.5,
                samplerate = 44100,
-               min_vel = -4.0,
-               max_vel = 4.0,
+               min_vel = -8.0,
+               max_vel =8.0,
                SAVE_WEIGHTS = True,
                weight_path = None,
                weight_iter_num = None,
@@ -151,7 +143,7 @@ class PsyonicForReal():
         mini_batch_size = int(buffer_size / max_step)
         n_step_per_update=buffer_size
 
-        PPO = PPOClass(max_torque=max_pos,
+        PPO = PPOClass(max_pos=max_pos,
                         obs_dim=obs_dim,
                         act_dim=act_dim,
                         h_dims=h_dims,
@@ -193,7 +185,7 @@ class PsyonicForReal():
 
         # Set WandB
         if WANDB:
-            wandb.init(project='icra-making-sound', entity='taemoon-jeong', name=str(folder)+'-'+str(self.seed))
+            wandb.init(project='making-tapping-sound', entity='taemoon-jeong', name=str(folder)+'-'+str(self.seed))
             wandb.config.update(args)
 
         # Real-world rollouts
@@ -203,6 +195,7 @@ class PsyonicForReal():
             w_amp_rew = 3
             w_onset_rew = 2e1
             w_timing_rew = 6e2 #2e4?
+            w_hit_rew = 150
         
             amp_rate = 20 # 20 is generalization value
             ref_audio, ref_sr = librosa.load(self.ref_audio_path) # load reference audio
@@ -291,17 +284,18 @@ class PsyonicForReal():
                         onset_times = librosa.frames_to_time(onset_frames,sr=ref_sr)
 
                         if beat_cnt_ref == beat_cnt:
-                            hit_reward += 150*beat_cnt
+                            hit_reward += w_hit_rew*beat_cnt
                             # timing_reward = 2e3*np.exp(-1e-1*euclidean(onset_frames_ref,onset_frames))
-                            timing_reward = w_timing_rew*np.exp(-10*euclidean(onset_times_ref,onset_times))
+                            timing_reward = w_timing_rew*np.exp(-euclidean(onset_times_ref,onset_times))
                             
                         else:
                             hit_reward += 0
                             timing_reward = 0
                         
                         dtw_onset, _ = fastdtw(norm_onset_env, norm_onset_env_ref) # Onset DTW
-                        threshold_onset = 4.0 # Check this value
-                        onset_reward = (threshold_onset-dtw_onset)*w_onset_rew
+                        # threshold_onset = 4.0 # Check this value
+                        # onset_reward = (threshold_onset-dtw_onset)*w_onset_rew
+                        onset_reward = (-dtw_onset)*w_onset_rew
 
                         print(f"**Hit reward:{hit_reward}")
                         print(f"**Onset reward:{onset_reward}")
@@ -329,7 +323,7 @@ class PsyonicForReal():
                         if beat_cnt_ref == beat_cnt:
                             hit_reward += 150*beat_cnt
                             # timing_reward = 2e3*np.exp(-1e-1*euclidean(onset_frames_ref,onset_frames))
-                            timing_reward = w_timing_rew*np.exp(-10*euclidean(onset_times_ref,onset_times))
+                            timing_reward = w_timing_rew*np.exp(-euclidean(onset_times_ref,onset_times))
                             
                         else:
                             hit_reward += 0
