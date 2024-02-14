@@ -14,10 +14,16 @@ If not, you can find installation instructions on the [`pyenv` GitHub page](http
 ### Installing Python 3.8.10 with pyenv
 
 First, install Python 3.8.10 using `pyenv`:
-
 ```bash
 pyenv install 3.8.10
 ```
+
+### Creating a Virtual Environment
+
+With `pyenv-virtualenv`, you can create a virtual environment for the installed Python version:
+
+
+
 
 ### Installing Python 3.8.10
 
