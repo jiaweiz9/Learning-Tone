@@ -8,41 +8,18 @@ These instructions will get you a copy of the project up and running on your loc
 
 ### Prerequisites
 
-Before you proceed, ensure you have the following software installed on your machine.
+Ensure `pyenv` and `pyenv-virtualenv` are installed on your system.
+If not, you can find installation instructions on the [`pyenv` GitHub page](https://github.com/pyenv/pyenv#installation) and the [`pyenv-virtualenv` GitHub page](https://github.com/pyenv/pyenv-virtualenv).
 
-- `pyenv`: a tool to manage multiple Python versions.
+### Installing Python 3.8.10 with pyenv
 
-In here, we use `3.8.10` version.
-
-#### Installing pyenv
-
-Follow the instructions below to install `pyenv` on your machine.
-
-##### On Ubuntu
+First, install Python 3.8.10 using `pyenv`:
 
 ```bash
-# Install prerequisites
-sudo apt-get install -y build-essential libssl-dev zlib1g-dev libbz2-dev \
-libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev \
-xz-utils tk-dev libffi-dev liblzma-dev python3-openssl git
-
-# Install pyenv
-curl https://pyenv.run | bash
+pyenv install 3.8.10
 ```
 
-Add pyenv to $PATH by adding the following lines to your profile or shell configuration file, for example ~/.bashrc or ~/.zshrc:
-
-```bash
-export PATH="$HOME/.pyenv/bin:$PATH"
-eval "$(pyenv init --path)"
-eval "$(pyenv virtualenv-init)"
-```
-
-Restart your shell:
-
-```bash
-exec "$SHELL"
-```
+### Installing Python 3.8.10
 
 ### Usage
 Explain how to use your project. Provide examples.
