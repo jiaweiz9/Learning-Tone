@@ -238,7 +238,7 @@ class PsyonicForReal():
                 mean_ref_amp = np.mean(abs(ref_audio_info))*amp_scale
                 gap_amp = np.abs(mean_amp-mean_ref_amp)
 
-                # Amplitude reward (Value Check!)
+                # Eq(1). Amplitude reward
                 amp_reward = np.exp(-gap_amp)
                 print(f"**Amplitude Reward:{w_amp_rew*amp_reward}")
 
@@ -273,16 +273,15 @@ class PsyonicForReal():
                         beat_cnt = onset_frames.size
                         onset_times = librosa.frames_to_time(onset_frames,sr=ref_sr)
 
-                        # Onset strength reward
+                        # Eq(2). Onset strength reward
                         dtw_onset, _ = fastdtw(norm_onset_env, norm_onset_env_ref) # Onset DTW
                         onset_reward = (-dtw_onset)
-
-                        # Onset timing reward, Hit reward
+                        # Eq(3). Onset timing reward
+                        timing_reward = np.exp(-euclidean(onset_times_ref,onset_times))
+                        # Eq(4). Hit reward
                         if beat_cnt_ref == beat_cnt:
                             hit_reward = beat_cnt
-                            timing_reward = np.exp(-euclidean(onset_times_ref,onset_times))
                         else:
-                            timing_reward = 0
                             hit_reward = 0
                             
                         print(f"**Onset Strength Reward:{w_onset_rew*onset_reward}")
@@ -317,7 +316,7 @@ class PsyonicForReal():
                     one_epi_reward = 0
                     time.sleep(0.2)
                 else:
-                    total_reward = w_amp_rew*amp_reward + 0 + 0 + 0
+                    total_reward = w_amp_rew*amp_reward
                     epi_reward += total_reward
                     one_epi_reward += total_reward
                     PPOBuffer.put(obs, action, total_reward, val, log_prob)
