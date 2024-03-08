@@ -462,6 +462,8 @@ class PsyonicForReal():
 
             # Set initial observation
             control_joint_pos = np.zeros(6) + self.out_min # 6-fingertip joint angles
+
+            prev_time = time.time()
             self.QPosPublisher.publish_once(control_joint_pos)
             obs = np.zeros(obs_dim)
 
@@ -470,6 +472,7 @@ class PsyonicForReal():
             vel_traj = [0]
             acc_traj = [0]
             n_step = 0
+
             for t in range(1, buffer_size*max_iter + 1):
                 n_step += 1
                 ref_audio_info = ref_audio[441*(n_step-1):441*(n_step)]
@@ -491,6 +494,12 @@ class PsyonicForReal():
                     acc_traj.append(self.get_acceleration(prev_vel, curr_vel)[0])
                 pos_traj.append(curr_action[0])
                 vel_traj.append(vel_clip[0])
+
+                cur_time = time.time()
+                interval_time = cur_time - prev_time
+                print(f"**Action Publish Interval Time:{interval_time}")
+                prev_time = cur_time
+
                 self.QPosPublisher.publish_once(control_joint_pos) # Publish action 0.02 sec
                 audio_data = Recoder.get_current_buffer() # get current sound data
                 audio_data_step = audio_data[882*(n_step-1):882*(n_step)] # time window slicing 0.02sec
@@ -576,6 +585,8 @@ class PsyonicForReal():
                                             last_val=last_val)
                     # Set initial observation
                     control_joint_pos = np.zeros(6) + self.out_min
+
+                    prev_time = time.time()
                     self.QPosPublisher.publish_once(control_joint_pos)
                     pos_traj = [self.out_min]
                     vel_traj = [0]
@@ -631,4 +642,3 @@ class PsyonicForReal():
                             torch.save(PPO.critic.state_dict(), f"result/ppo/weights/psyonic_critic_{iter_cnt+weight_iter_num}.pth")
                             torch.save(PPO.log_std, f"result/ppo/weights/psyonic_log_std_{iter_cnt+weight_iter_num}.pth")
 
-            
