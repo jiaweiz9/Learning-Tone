@@ -303,10 +303,10 @@ class PsyonicForReal():
         # Set random seed
         self.set_random_seed()
 
-        # Set WandB
-        if WANDB:
-            wandb.init(project='making-tapping-sound', entity='jiawei-zhang', name=str(folder)+'-'+str(self.seed))
-            wandb.config.update(args)
+        # # Set WandB
+        # if WANDB:
+        #     wandb.init(project='making-tapping-sound', entity='jiawei-zhang', name=str(folder)+'-'+str(self.seed))
+        #     wandb.config.update(args)
 
         # Real-world rollouts
         YorN = str(input("Do you want to roll out real-world? (y/n): "))
@@ -355,8 +355,8 @@ class PsyonicForReal():
             mean_ep_reward = epi_reward / epi_cnt
             epi_reward, epi_cnt = 0, 0
             # Wandb
-            if WANDB:
-                wandb.log({"Iter": iter_cnt, "AVG_REWARD": mean_ep_reward, "ACTOR_LOSS": np.mean(actor_loss_ls), "CRITIC_LOSS": np.mean(critic_loss_ls), "TOTAL_LOSS": np.mean(total_loss_ls)})
+            # if WANDB:
+            #     wandb.log({"Iter": iter_cnt, "AVG_REWARD": mean_ep_reward, "ACTOR_LOSS": np.mean(actor_loss_ls), "CRITIC_LOSS": np.mean(critic_loss_ls), "TOTAL_LOSS": np.mean(total_loss_ls)})
             print(f"Iter={iter_cnt}, AVG_REWARD={mean_ep_reward:.2f}, ACTOR_LOSS={np.mean(actor_loss_ls):.2f}, CRITIC_LOSS={np.mean(critic_loss_ls):.2f}, TOTAL_LOSS={np.mean(total_loss_ls):.2f}")
             actor_loss_ls = []; critic_loss_ls = []; total_loss_ls = []
             if SAVE_WEIGHTS:
@@ -442,9 +442,9 @@ class PsyonicForReal():
         self.set_random_seed()
 
         # Set WandB
-        if WANDB:
-            wandb.init(project='making-tapping-sound', entity='taemoon-jeong', name=str(folder)+'-'+str(self.seed))
-            wandb.config.update(args)
+        # if WANDB:
+        #     wandb.init(project='making-tapping-sound', entity='taemoon-jeong', name=str(folder)+'-'+str(self.seed))
+        #     wandb.config.update(args)
 
         # Real-world rollouts
         YorN = str(input("Do you want to roll out real-world? (y/n): "))
@@ -497,7 +497,7 @@ class PsyonicForReal():
 
                 cur_time = time.time()
                 interval_time = cur_time - prev_time
-                print(f"**Action Publish Interval Time:{interval_time}")
+                # print(f"**Action Publish Interval Time:{interval_time}")
                 prev_time = cur_time
 
                 self.QPosPublisher.publish_once(control_joint_pos) # Publish action 0.02 sec
@@ -630,8 +630,8 @@ class PsyonicForReal():
                     mean_ep_reward = epi_reward / epi_cnt
                     epi_reward, epi_cnt = 0, 0
                     # Wandb
-                    if WANDB:
-                        wandb.log({"Iter": iter_cnt, "AVG_REWARD": mean_ep_reward, "ACTOR_LOSS": np.mean(actor_loss_ls), "CRITIC_LOSS": np.mean(critic_loss_ls), "TOTAL_LOSS": np.mean(total_loss_ls)})
+                    # if WANDB:
+                    #     wandb.log({"Iter": iter_cnt, "AVG_REWARD": mean_ep_reward, "ACTOR_LOSS": np.mean(actor_loss_ls), "CRITIC_LOSS": np.mean(critic_loss_ls), "TOTAL_LOSS": np.mean(total_loss_ls)})
                     print(f"Iter={iter_cnt}, AVG_REWARD={mean_ep_reward:.2f}, ACTOR_LOSS={np.mean(actor_loss_ls):.2f}, CRITIC_LOSS={np.mean(critic_loss_ls):.2f}, TOTAL_LOSS={np.mean(total_loss_ls):.2f}")
                     actor_loss_ls = []; critic_loss_ls = []; total_loss_ls = []
                     if SAVE_WEIGHTS:
