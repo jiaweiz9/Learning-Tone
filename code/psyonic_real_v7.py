@@ -14,6 +14,7 @@ import wavio
 import threading
 from fastdtw import fastdtw
 from scipy.spatial.distance import euclidean
+import math
 
 class SoundRecorder():
     def __init__(self, samplerate=44100, audio_device=None):
@@ -42,8 +43,8 @@ class SoundRecorder():
                 audio_chunk, overflowed = stream.read(chunk_size)
                 if overflowed:
                     print("Audio buffer overflowed! Some audio might be lost.")
-                with self.lock:
-                    self.recording_list.append(audio_chunk)
+                
+                self.recording_list.append(audio_chunk)
             print("Recording stopped!")
 
     def stop_recording(self):
@@ -54,20 +55,20 @@ class SoundRecorder():
             self.recording_thread = None
 
     def get_current_buffer(self):
-        with self.lock:
-            if self.recording_list:
-                # Convert list of chunks to a single numpy array
-                return np.concatenate(self.recording_list, axis=0)
-            else:
-                print("Recording hasn't started yet!")
-                return None
+
+        if self.recording_list:
+            # Convert list of chunks to a single numpy array
+            return np.concatenate(self.recording_list, axis=0)
+        else:
+            print("Recording hasn't started yet!")
+            return None
 
 
 #TODO: 1. Add Timer to check if the action commandding rate is 50HZ (0.02sec)
 class PsyonicForReal():
     def __init__(self,
                  name = "Learning Make Well-Sound for Real Robot",
-                 ref_audio_path = 'ref_audio/ref_audio_human_1.wav',
+                 ref_audio_path = 'ref_audio/xylophone/ref_hit2.wav',
                  out_min = 0.087,
                  out_max = 1.047,
                  seed = 111,
@@ -79,6 +80,15 @@ class PsyonicForReal():
         self.name = name
         self.out_min = out_min
         self.out_max = out_max
+        self.initial_pose = np.array([120, 100, 100, 135, 70, -30]) * 3.14 / 180
+        print("initial pose:", self.initial_pose)
+        self.max_pose = np.array([90, 90, 90, 125, 50, -45]) * 3.14 / 180
+
+        self.w_amp_rew = 1
+        self.w_onset_rew = 1e2
+        self.w_timing_rew = 1e2
+        self.w_hit_rew = 1e2
+
         self.device = torch.device("cuda:{}".format(device_idx) if torch.cuda.is_available() else "cpu")
         self.set_ros()
 
@@ -95,26 +105,26 @@ class PsyonicForReal():
         
     # Calculation Functions - Obeservations
     def get_velocity(self, prev_action, curr_action):
-        vel = (curr_action - prev_action)/(1/self.ros_rate) # 50HZ, ros_rate
+        vel = (curr_action - prev_action) / (1 / self.ros_rate) # 50HZ, ros_rate
         return vel
     
-    def vel_clip_action(self,prev_action,action,min_vel=-8.0,max_vel=8.0):
+    def vel_clip_action(self, prev_action, action, min_vel=-8.0, max_vel=8.0):
         vel = self.get_velocity(prev_action, action)
-        vel_clip = np.clip(vel,min_vel,max_vel)
-        delta_action = vel_clip*(1/(self.ros_rate))
+        vel_clip = np.clip(vel, min_vel, max_vel)
+        delta_action = vel_clip * (1 / (self.ros_rate))
         curr_action = prev_action + delta_action
         return curr_action, vel_clip
     
     def get_acceleration(self, prev_vel, curr_vel):
-        acc = (curr_vel - prev_vel)/(1/self.ros_rate)
+        acc = (curr_vel - prev_vel) / (1 / self.ros_rate)
         return acc
     
     def amplitude_reward(self, audio_data_step_window, ref_data_step_window, amp_scale=1e2):
-        mean_amp = np.mean(abs(audio_data_step_window))*amp_scale
+        mean_amp = np.mean(abs(audio_data_step_window))* amp_scale
         if np.isnan(mean_amp):
                     mean_amp = 0
-        mean_ref_amp = np.mean(abs(ref_data_step_window))*amp_scale
-        gap_amp = np.abs(mean_amp-mean_ref_amp)
+        mean_ref_amp = np.mean(abs(ref_data_step_window))* amp_scale
+        gap_amp = np.abs(mean_amp - mean_ref_amp)
         amp_reward = np.exp(-gap_amp)
         return amp_reward, mean_amp
     
@@ -149,7 +159,7 @@ class PsyonicForReal():
         return onset_reward, timing_reward, hit_reward
     
 
-    def sample_trajectory(self, actor, buffer, max_step, episode_len, max_pos, min_vel, max_vel):
+    def sample_trajectory(self, PPO_agent, buffer, max_step, episode_len, max_pos, min_vel, max_vel, samplerate):
         obs_trajectory = []
         act_trajectory = []
         reward_trajectory = []
@@ -158,27 +168,29 @@ class PsyonicForReal():
 
             # For every new episode, we reset the position to the minimum value?, obersevation to zero
             if i % episode_len == 0:
-                prev_action = self.out_min
-                pre_velocity = 0
-                velocity = 0
-                acceleration = 0
+                prev_action = self.initial_pose
+                pre_velocity = np.zeros(6)
+                velocity = np.zeros(6)
+                acceleration = np.zeros(6)
 
-                obs = np.zeros(6)
-                obs_trajectory.append(obs)
+                obs = np.concatenate((prev_action, self.initial_pose, np.zeros(19)), axis=0) # initial obersavation is initial pose with 0 velocity and 0 acceleration
+                # obs_trajectory.append(obs)
 
                 # Start recording
-                Recoder = SoundRecorder(samplerate=self.sample_rate, audio_device=None) # Bug fixed!! audio_devce=None is to use default connected device
+                Recoder = SoundRecorder(samplerate=samplerate, audio_device=None) # Bug fixed!! audio_devce=None is to use default connected device
                 Recoder.start_recording()
+                start_time = time.time()
                 time.sleep(0.02)
             else:
                 prev_action = act_trajectory[i-1]
             
             # Get action from actor
-            action, log_prob, val = actor.get_action(obs)
+            action, log_prob, val = PPO_agent.get_action(obs)
             curr_action, vel_clip = self.vel_clip_action(prev_action, action, min_vel=min_vel, max_vel=max_vel) # radian
-            curr_action = np.clip(curr_action, self.out_min, self.out_max)
-            control_joint_pos = np.zeros(6) + self.out_min
-            control_joint_pos[0] = curr_action * (180./3.14)
+
+            curr_action = np.clip(curr_action, self.max_pose, self.initial_pose)
+
+            control_joint_pos = curr_action * (180./3.14)
             self.QPosPublisher.publish_once(control_joint_pos) # Publish action 0.02 sec
 
             velocity = curr_action - prev_action
@@ -187,26 +199,37 @@ class PsyonicForReal():
 
             # Get audio data
             ref_audio, ref_sr = librosa.load(self.ref_audio_path) # load reference audio
-            ref_audio_info = ref_audio[441*(i-1):441*(i)]
+            ref_audio_info = ref_audio[441* i : 441* (i + 1)]
             audio_data = Recoder.get_current_buffer() # get current sound data
-            audio_data_step = audio_data[882*(i-1):882*(i)] # time window slicing 0.02sec
+            audio_data_step = audio_data[882 * i : 882 * (i + 1)] # time window slicing 0.02sec
+
+            cur_time = time.time()
+            print("======step:", i)
+            print("==time elapsed:", cur_time - start_time)
+            print("=ref_audio_len: ", len(ref_audio))
+            print("=record_audio_len:", len(audio_data))
+            print("=ref_audio_step:", len(ref_audio_info))
+            print("=audio_data_step:", len(audio_data_step))
 
             amp_reward, mean_amp = self.amplitude_reward(audio_data_step, ref_audio_info, amp_scale=1e2)
             print(f"**Amplitude Reward:{self.w_amp_rew * amp_reward}")
 
             # Set next observation
-            next_obs = np.array([prev_action, curr_action, pre_velocity, velocity, acceleration, mean_amp])
+            mean_amp = np.asarray(mean_amp).reshape(1)
+            print("mean amp", mean_amp.shape)
+            next_obs = np.concatenate((prev_action, curr_action, pre_velocity, velocity, acceleration, mean_amp), axis=0)
 
             # Episode done
-            if i % episode_len == 0:
+            if (i + 1) % episode_len == 0:
                 Recoder.stop_recording()
                 audio_data = Recoder.get_current_buffer()
-                wavio.write(f"result/record_audios/episode_{i}.wav", audio_data, rate=self.sample_rate, sampwidth=3)
+                wavio.write(f"result/record_audios/episode_{i}.wav", audio_data, rate=samplerate, sampwidth=3)
                 audio_data, rate = librosa.load(f"result/record_audios/episode_{i}.wav")
 
                 max_amp = np.max(abs(audio_data))
                 hit_amp_th = 0.0155
-                if max_amp > hit_amp_th:
+
+                if max_amp > hit_amp_th: # calculate episode rewards only when the sound is load enough
                     audio_data[abs(audio_data)<hit_amp_th] = 1e-5
                     onset_reward, timing_reward, hit_reward = self.onset_timing_hit_reward(audio_data, ref_audio, ref_sr)
 
@@ -229,17 +252,18 @@ class PsyonicForReal():
             act_trajectory.append(curr_action)
             reward_trajectory.append(total_reward)
             buffer.put(obs, action, total_reward, val, log_prob)
+            obs = next_obs
 
 
     def clean_update(self, 
                     max_iter = 500,
                     ros_rate=50,
-                    record_duration=1,
+                    record_duration=4,
                     n_epi = 12,
                     k_epoch = 10,
                     max_pos = 1.047, # max joint position radian
-                    obs_dim = 6, # one-finger joint position, velocity, acceleration, mean_amp
-                    act_dim = 1, # one-finger joint position
+                    obs_dim = 31, # 5-finger joint position dim(6)*2, velocity dim(6)*2, acceleration dim(6), mean_amp dim(1)
+                    act_dim = 6, # 5-finger joint position
                     h_dims = [128, 128],
                     gamma = 0.99,
                     lmbda = 0.95,
@@ -261,8 +285,8 @@ class PsyonicForReal():
         episode_len = record_duration * ros_rate # (50HZ)
         buffer_size = episode_len * n_epi
 
-        mini_batch_size = args.mini_batch_size
-        n_step_per_update = args.n_step_per_update
+        mini_batch_size = buffer_size
+        n_step_per_update = buffer_size
 
         PPO = PPOClass(max_pos=max_pos,
                         obs_dim=obs_dim,
@@ -303,19 +327,14 @@ class PsyonicForReal():
         # Set random seed
         self.set_random_seed()
 
-        # # Set WandB
+        # Set WandB
         # if WANDB:
-        #     wandb.init(project='making-tapping-sound', entity='jiawei-zhang', name=str(folder)+'-'+str(self.seed))
+        #     wandb.init(project='music', entity='jiawei-zhang', name=str(folder)+'-'+str(self.seed))
         #     wandb.config.update(args)
 
         # Real-world rollouts
         YorN = str(input("Do you want to roll out real-world? (y/n): "))
         if YorN.lower() != 'n':
-            # Reward weight, we have different reward scale for each reward, so we need to tune the value
-            w_amp_rew = 1
-            w_onset_rew = 1e2
-            w_timing_rew = 1e2
-            w_hit_rew = 1e2
 
             # Load reference audio
             amp_rate = 20 # 20 is generalization value. Compare the amplitude of the reference sound and the generated sound and adjust the value.
@@ -323,10 +342,12 @@ class PsyonicForReal():
             ref_audio = ref_audio / amp_rate 
 
             # initial set
-            control_joint_pos = np.zeros(6) + self.out_min # 6-fingertip joint angles
+            control_joint_pos = self.initial_pose * (180./3.14) # 6-fingertip joint angles
+
+            print("Initial position: ", control_joint_pos)
             self.QPosPublisher.publish_once(control_joint_pos)
 
-            self.sample_trajectory(PPO.actor, PPOBuffer, buffer_size, episode_len, max_pos, min_vel, max_vel)
+            self.sample_trajectory(PPO, PPOBuffer, buffer_size, episode_len, max_pos, min_vel, max_vel, samplerate)
             
             # PPO training update
             iter_cnt += 1
@@ -353,10 +374,13 @@ class PsyonicForReal():
                     total_loss_ls.append(total_loss.numpy())
             PPOBuffer.clear()      
             mean_ep_reward = epi_reward / epi_cnt
-            epi_reward, epi_cnt = 0, 0
-            # Wandb
+            epi_reward, epi_cnt = 0,
+            
+
             # if WANDB:
             #     wandb.log({"Iter": iter_cnt, "AVG_REWARD": mean_ep_reward, "ACTOR_LOSS": np.mean(actor_loss_ls), "CRITIC_LOSS": np.mean(critic_loss_ls), "TOTAL_LOSS": np.mean(total_loss_ls)})
+            
+            
             print(f"Iter={iter_cnt}, AVG_REWARD={mean_ep_reward:.2f}, ACTOR_LOSS={np.mean(actor_loss_ls):.2f}, CRITIC_LOSS={np.mean(critic_loss_ls):.2f}, TOTAL_LOSS={np.mean(total_loss_ls):.2f}")
             actor_loss_ls = []; critic_loss_ls = []; total_loss_ls = []
             if SAVE_WEIGHTS:
@@ -461,7 +485,9 @@ class PsyonicForReal():
             ref_audio = ref_audio / amp_rate 
 
             # Set initial observation
-            control_joint_pos = np.zeros(6) + self.out_min # 6-fingertip joint angles
+            start_joint_pos = np.array([120, 100, 100, 90, 50, -20])
+            # control_joint_pos = np.zeros(6) + self.out_min # 6-fingertip joint angles
+            control_joint_pos = start_joint_pos
 
             prev_time = time.time()
             self.QPosPublisher.publish_once(control_joint_pos)
@@ -584,7 +610,7 @@ class PsyonicForReal():
                                             lmbda=PPO.lmbda,
                                             last_val=last_val)
                     # Set initial observation
-                    control_joint_pos = np.zeros(6) + self.out_min
+                    control_joint_pos = start_joint_pos
 
                     prev_time = time.time()
                     self.QPosPublisher.publish_once(control_joint_pos)
@@ -642,3 +668,15 @@ class PsyonicForReal():
                             torch.save(PPO.critic.state_dict(), f"result/ppo/weights/psyonic_critic_{iter_cnt+weight_iter_num}.pth")
                             torch.save(PPO.log_std, f"result/ppo/weights/psyonic_log_std_{iter_cnt+weight_iter_num}.pth")
 
+if __name__ == "__main__":
+    sr = SoundRecorder()
+    sr.start_recording()
+    time.sleep(0.02)
+    start_time = time.time()
+    for i in range(100):
+        time.sleep(0.02)
+        cur_time = time.time()
+        record_list = sr.get_current_buffer()
+        print("time_elapse:", cur_time - start_time)
+        print("length of list", len(record_list))
+        print("\n")
