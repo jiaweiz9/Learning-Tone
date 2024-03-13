@@ -55,3 +55,19 @@ Taemoon Jeong, taemoon-jeong@korea.ac.kr
 
 ## Denoise
 Download NoiseTorch: [text](https://github.com/noisetorch/NoiseTorch)
+
+## Init Position setup
+rostopic pub robot1/psyonic_controller std_msgs/Float32MultiArray "layout:
+  dim:
+  - label: ''
+    size: 0
+    stride: 0
+  data_offset: 0
+data:
+- 105
+- 105
+- 105
+- 110
+- 70
+- -10
+"

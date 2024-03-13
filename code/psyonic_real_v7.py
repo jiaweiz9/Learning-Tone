@@ -60,6 +60,13 @@ class SoundRecorder():
             self.recording_thread.join()
             self.recording_thread = None
 
+    def clear_buffer(self):
+        assert self.is_recording == False
+        self.recording_list = []
+        while not self.q.empty():
+            self.q.get()
+        assert self.q.empty() == True
+
     def get_current_buffer(self):
 
         # if self.recording_list:
@@ -97,9 +104,9 @@ class PsyonicForReal():
         self.name = name
         self.out_min = out_min
         self.out_max = out_max
-        self.initial_pose = np.array([120, 100, 100, 135, 70, -30]) * 3.14 / 180
+        self.initial_pose = np.array([105, 105, 105, 110, 70, -10]) * 3.14 / 180
         print("initial pose:", self.initial_pose)
-        self.max_pose = np.array([90, 90, 90, 125, 50, -45]) * 3.14 / 180
+        self.max_pose = np.array([105, 105, 105, 110, 70, -25]) * 3.14 / 180
 
         self.w_amp_rew = 1
         self.w_onset_rew = 1e2
@@ -153,7 +160,7 @@ class PsyonicForReal():
         norm_onset_env_ref = onset_env_ref / np.max(onset_env_ref)
         onset_frames_ref = librosa.onset.onset_detect(y=audio_ref_onset, sr=ref_sr)
         beat_cnt_ref = onset_frames_ref.size
-        onset_times_ref = librosa.frames_to_time(onset_frames_ref,sr=ref_sr)
+        onset_times_ref = librosa.frames_to_time(onset_frames_ref, sr=ref_sr)
 
         # Generated sound Onset
         onset_env = librosa.onset.onset_strength(y=audio_onset, sr=ref_sr)
@@ -166,20 +173,24 @@ class PsyonicForReal():
         dtw_onset, _ = fastdtw(norm_onset_env, norm_onset_env_ref) # Onset DTW
         onset_reward = (-dtw_onset)
         # Eq(3). Onset timing reward
-        timing_reward = np.exp(-euclidean(onset_times_ref,onset_times))
+        # timing_reward = np.exp(-euclidean(onset_times_ref, onset_times))
         # Eq(4). Hit reward
         if beat_cnt_ref == beat_cnt:
             hit_reward = beat_cnt
         else:
             hit_reward = 0
 
-        return onset_reward, timing_reward, hit_reward
+        return onset_reward, hit_reward
     
 
     def sample_trajectory(self, PPO_agent, buffer, max_step, episode_len, max_pos, min_vel, max_vel, samplerate):
         obs_trajectory = []
         act_trajectory = []
         reward_trajectory = []
+
+        episode_count = 0
+        total_step = 0
+        total_reward = 0
 
         for i in range(max_step):
 
@@ -247,15 +258,18 @@ class PsyonicForReal():
             if (i + 1) % episode_len == 0:
                 Recoder.stop_recording()
                 audio_data = Recoder.get_current_buffer()
+                Recoder.clear_buffer()
                 wavio.write(f"result/record_audios/episode_{i}.wav", audio_data, rate=samplerate, sampwidth=3)
                 audio_data, rate = librosa.load(f"result/record_audios/episode_{i}.wav")
 
                 max_amp = np.max(abs(audio_data))
                 hit_amp_th = 0.0155
+                episode_count += 1
 
                 if max_amp > hit_amp_th: # calculate episode rewards only when the sound is load enough
                     audio_data[abs(audio_data)<hit_amp_th] = 1e-5
-                    onset_reward, timing_reward, hit_reward = self.onset_timing_hit_reward(audio_data, ref_audio, ref_sr)
+                    # onset_reward, timing_reward, hit_reward = self.onset_timing_hit_reward(audio_data, ref_audio, ref_sr)
+                    onset_reward, hit_reward = self.onset_timing_hit_reward(audio_data, ref_audio, ref_sr)
 
                     print(f"**Onset Strength Reward:{self.w_onset_rew * onset_reward}")
                     print(f"**Onset Timing Reward:{self.w_timing_rew * timing_reward}")
@@ -265,19 +279,23 @@ class PsyonicForReal():
                     print(f"** You didn't touch to drum pad! **")
             
             # Total Reward
-            total_reward = self.w_amp_rew * amp_reward \
+            step_reward = self.w_amp_rew * amp_reward \
                             + self.w_onset_rew * onset_reward \
                             + self.w_timing_rew * timing_reward \
                             + self.w_hit_rew * hit_reward
             
             obs_trajectory.append(obs)
             act_trajectory.append(curr_action)
-            reward_trajectory.append(total_reward)
-            buffer.put(obs, action, total_reward, val, log_prob)
+            reward_trajectory.append(step_reward)
+            buffer.put(obs, action, step_reward, val, log_prob)
             obs = next_obs
+            total_step += 1
+            total_reward += step_reward
+        
+        return episode_count, total_reward, total_step
 
 
-    def clean_update(self, 
+    def update(self, 
                     max_iter = 500,
                     ros_rate=50,
                     record_duration=4,
@@ -350,9 +368,9 @@ class PsyonicForReal():
         self.set_random_seed()
 
         # Set WandB
-        # if WANDB:
-        #     wandb.init(project='music', entity='jiawei-zhang', name=str(folder)+'-'+str(self.seed))
-        #     wandb.config.update(args)
+        if WANDB:
+            wandb.init(project='music', name=str(folder)+'-'+str(self.seed))
+            wandb.config.update(args)
 
         # Real-world rollouts
         YorN = str(input("Do you want to roll out real-world? (y/n): "))
@@ -370,49 +388,48 @@ class PsyonicForReal():
             self.QPosPublisher.publish_once(control_joint_pos)
             print("Initial position published")
 
-            self.sample_trajectory(PPO, PPOBuffer, buffer_size, episode_len, max_pos, min_vel, max_vel, samplerate)
-            
-            # PPO training update
-            iter_cnt += 1
-            for _ in range(k_epoch):
-                mini_batch_data = PPOBuffer.get_mini_batch(mini_batch_size=mini_batch_size)
-                n_mini_batch = len(mini_batch_data)
-                for k in range(n_mini_batch):
-                    obs_batch = mini_batch_data[k]['obs']
-                    act_batch = mini_batch_data[k]['action']
-                    log_prob_batch = mini_batch_data[k]['log_prob']
-                    advantage_batch = mini_batch_data[k]['advantage']
-                    advantage_batch = (advantage_batch - np.squeeze(np.mean(advantage_batch, axis=0))) / (np.squeeze(np.std(advantage_batch, axis=0)) + 1e-8)
-                    return_batch = mini_batch_data[k]['return']
+            for i in range(max_iter):
+                iter_cnt += 1
+                epi_cnt, epi_reward, total_steps = self.sample_trajectory(PPO, PPOBuffer, buffer_size, episode_len, max_pos, min_vel, max_vel, samplerate)
+                
+                # PPO training update
+                for _ in range(k_epoch):
+                    mini_batch_data = PPOBuffer.get_mini_batch(mini_batch_size=mini_batch_size)
+                    n_mini_batch = len(mini_batch_data)
+                    for k in range(n_mini_batch):
+                        obs_batch = mini_batch_data[k]['obs']
+                        act_batch = mini_batch_data[k]['action']
+                        log_prob_batch = mini_batch_data[k]['log_prob']
+                        advantage_batch = mini_batch_data[k]['advantage']
+                        advantage_batch = (advantage_batch - np.squeeze(np.mean(advantage_batch, axis=0))) / (np.squeeze(np.std(advantage_batch, axis=0)) + 1e-8)
+                        return_batch = mini_batch_data[k]['return']
 
-                    obs_batch = np2torch(obs_batch)
-                    act_batch = np2torch(act_batch)
-                    log_prob_batch = np2torch(log_prob_batch)
-                    advantage_batch = np2torch(advantage_batch)
-                    return_batch = np2torch(return_batch)
+                        obs_batch = np2torch(obs_batch)
+                        act_batch = np2torch(act_batch)
+                        log_prob_batch = np2torch(log_prob_batch)
+                        advantage_batch = np2torch(advantage_batch)
+                        return_batch = np2torch(return_batch)
 
-                    actor_loss, critic_loss, total_loss = PPO.update(obs_batch, act_batch, log_prob_batch, advantage_batch, return_batch)
-                    actor_loss_ls.append(actor_loss.numpy())
-                    critic_loss_ls.append(critic_loss.numpy())
-                    total_loss_ls.append(total_loss.numpy())
-            PPOBuffer.clear()      
-            mean_ep_reward = epi_reward / epi_cnt
-            epi_reward, epi_cnt = 0,
-            
+                        actor_loss, critic_loss, total_loss = PPO.update(obs_batch, act_batch, log_prob_batch, advantage_batch, return_batch)
+                        actor_loss_ls.append(actor_loss.numpy())
+                        critic_loss_ls.append(critic_loss.numpy())
+                        total_loss_ls.append(total_loss.numpy())
+                PPOBuffer.clear()      
+                mean_ep_reward = epi_reward / epi_cnt            
 
-            # if WANDB:
-            #     wandb.log({"Iter": iter_cnt, "AVG_REWARD": mean_ep_reward, "ACTOR_LOSS": np.mean(actor_loss_ls), "CRITIC_LOSS": np.mean(critic_loss_ls), "TOTAL_LOSS": np.mean(total_loss_ls)})
-            
-            
-            print(f"Iter={iter_cnt}, AVG_REWARD={mean_ep_reward:.2f}, ACTOR_LOSS={np.mean(actor_loss_ls):.2f}, CRITIC_LOSS={np.mean(critic_loss_ls):.2f}, TOTAL_LOSS={np.mean(total_loss_ls):.2f}")
-            actor_loss_ls = []; critic_loss_ls = []; total_loss_ls = []
-            if SAVE_WEIGHTS:
-                if iter_cnt % 5 == 0:
-                    if not os.path.exists("result/weights"):
-                        os.makedirs("result/weights")
-                    torch.save(PPO.actor.state_dict(), f"result/ppo/weights/psyonic_actor_{iter_cnt+weight_iter_num}.pth")
-                    torch.save(PPO.critic.state_dict(), f"result/ppo/weights/psyonic_critic_{iter_cnt+weight_iter_num}.pth")
-                    torch.save(PPO.log_std, f"result/ppo/weights/psyonic_log_std_{iter_cnt+weight_iter_num}.pth")
+                if WANDB:
+                    wandb.log({"Iter": iter_cnt, "AVG_REWARD": mean_ep_reward, "ACTOR_LOSS": np.mean(actor_loss_ls), "CRITIC_LOSS": np.mean(critic_loss_ls), "TOTAL_LOSS": np.mean(total_loss_ls)})
+                
+                
+                print(f"Iter={iter_cnt}, AVG_REWARD={mean_ep_reward:.2f}, ACTOR_LOSS={np.mean(actor_loss_ls):.2f}, CRITIC_LOSS={np.mean(critic_loss_ls):.2f}, TOTAL_LOSS={np.mean(total_loss_ls):.2f}")
+                actor_loss_ls = []; critic_loss_ls = []; total_loss_ls = []
+                if SAVE_WEIGHTS:
+                    if iter_cnt % 5 == 0:
+                        if not os.path.exists("result/ppo/weights"):
+                            os.makedirs("result/ppo/weights")
+                        torch.save(PPO.actor.state_dict(), f"result/ppo/weights/psyonic_actor_{iter_cnt+weight_iter_num}.pth")
+                        torch.save(PPO.critic.state_dict(), f"result/ppo/weights/psyonic_critic_{iter_cnt+weight_iter_num}.pth")
+                        torch.save(PPO.log_std, f"result/ppo/weights/psyonic_log_std_{iter_cnt+weight_iter_num}.pth")
 
 if __name__ == "__main__":
     sr = SoundRecorder()

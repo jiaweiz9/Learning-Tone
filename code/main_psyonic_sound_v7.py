@@ -10,7 +10,7 @@ def main(args):
                              out_min=args.out_min,
                              out_max=args.out_max,
                              seed=args.seed)
-    Psyonic.clean_update(min_vel=args.min_vel,
+    Psyonic.update(min_vel=args.min_vel,
                    max_vel=args.max_vel,
                    max_iter=args.max_iter,
                    ros_rate=args.ros_rate,
@@ -44,11 +44,11 @@ if __name__ == '__main__':
     parser.add_argument('--out_min', type=float, default=0.087) 
     parser.add_argument('--out_max', type=float, default=1.047)
     parser.add_argument('--ref_audio_path', type=str, default='ref_audio/xylophone/ref_hit2.wav')
-    parser.add_argument('--max_iter', type=int, default=300)
+    parser.add_argument('--max_iter', type=int, default=10)
     parser.add_argument('--ros_rate', type=int, default=50)
     parser.add_argument('--record_duration', type=int, default=1)
     
-    parser.add_argument('--n_epi', type=int, default=4000)
+    parser.add_argument('--n_epi', type=int, default=1)
     parser.add_argument('--k_epoch', type=int, default=10)
     parser.add_argument('--max_pos', type=float, default=1.0)
     parser.add_argument('--obs_dim', type=int, default=31)
