@@ -84,9 +84,11 @@ class SoundPublisher():
 
 class QPosPublisher():
     def __init__(self):
-        self.qpos_pub = rospy.Publisher('robot1/psyonic_controller', Float32MultiArray, queue_size=1000)
+        self.qpos_pub = rospy.Publisher('robot1/psyonic_controller', Float32MultiArray, queue_size=1000)\
+    
     def run(self, data):
         self.qpos_pub.publish(data)
+    
     def publish_once(self, data):
         data = rnm.to_multiarray_f32(data)
         while not rospy.is_shutdown():
