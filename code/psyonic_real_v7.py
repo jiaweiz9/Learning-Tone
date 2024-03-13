@@ -50,6 +50,7 @@ class SoundRecorder():
                 
                 # self.recording_list.append(audio_chunk)
                 self.q.put(audio_chunk)
+                print("put audio chunk")
             print("Recording stopped!")
 
     def stop_recording(self):
@@ -195,7 +196,7 @@ class PsyonicForReal():
                 # Start recording
                 Recoder = SoundRecorder(samplerate=samplerate, audio_device=None) # Bug fixed!! audio_devce=None is to use default connected device
                 Recoder.start_recording()
-                time.sleep(0.04)
+                time.sleep(0.1)
                 start_time = time.time()
 
             else:
@@ -238,6 +239,10 @@ class PsyonicForReal():
             print("mean amp", mean_amp.shape)
             next_obs = np.concatenate((prev_action, curr_action, pre_velocity, velocity, acceleration, mean_amp), axis=0)
 
+            onset_reward = 0
+            timing_reward = 0
+            hit_reward = 0
+            
             # Episode done
             if (i + 1) % episode_len == 0:
                 Recoder.stop_recording()
@@ -256,9 +261,7 @@ class PsyonicForReal():
                     print(f"**Onset Timing Reward:{self.w_timing_rew * timing_reward}")
                     print(f"**Hit Reward:{self.w_hit_rew * hit_reward}")
                 else:
-                    onset_reward = 0
-                    timing_reward = 0
-                    hit_reward = 0
+                    
                     print(f"** You didn't touch to drum pad! **")
             
             # Total Reward
