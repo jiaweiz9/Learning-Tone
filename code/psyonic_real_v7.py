@@ -6,89 +6,14 @@ import torch.nn.functional as F
 from utils.psyonic_func import *
 from rl.ppo import *
 from ros_func.publisher import QPosPublisher
-import sounddevice as sd
 import numpy as np
-import matplotlib.pyplot as plt
 import librosa
 import wavio
-import threading
-from fastdtw import fastdtw
-from scipy.spatial.distance import euclidean
-import math
-import queue
-
-class SoundRecorder():
-    def __init__(self, samplerate=44100, audio_device=None):
-        self.stream = None
-        self.is_recording = False
-        self.recording_list = []  # Using list instead of np.array for efficiency during recording
-
-        self.q = queue.Queue()
-        self.sample_rate = samplerate
-        self.recording_thread = None
-        self.lock = threading.Lock()
-        self.audio_idx = audio_device
-
-    def start_recording(self):
-        if not self.is_recording:
-            self.is_recording = True
-            self.recording_thread = threading.Thread(target=self._record_audio)
-            self.recording_thread.daemon = True
-            self.recording_thread.start()
-            print("Recording started!")
-        else:
-            print("Already recording!")
-
-    def _record_audio(self):
-        chunk_size = 882  # 20ms
-        with sd.InputStream(samplerate=self.sample_rate, channels=1, dtype='float32', device=self.audio_idx) as stream:
-            print('Starting recording...')
-            while self.is_recording:
-                audio_chunk, overflowed = stream.read(chunk_size)
-                if overflowed:
-                    print("Audio buffer overflowed! Some audio might be lost.")
-                
-                # self.recording_list.append(audio_chunk)
-                self.q.put(audio_chunk)
-                print("put audio chunk")
-            print("Recording stopped!")
-
-    def stop_recording(self):
-        # Stops the ongoing audio recording.
-        self.is_recording = False
-        if self.recording_thread is not None:
-            self.recording_thread.join()
-            self.recording_thread = None
-
-    def clear_buffer(self):
-        assert self.is_recording == False
-        self.recording_list = []
-        while not self.q.empty():
-            self.q.get()
-        assert self.q.empty() == True
-
-    def get_current_buffer(self):
-
-        # if self.recording_list:
-        #     # Convert list of chunks to a single numpy array
-        #     return np.concatenate(self.recording_list, axis=0)
-        # else:
-        #     print("Recording hasn't started yet!")
-        #     return None
-        while True:
-            try:
-                self.recording_list.append(self.q.get_nowait())
-            except queue.Empty:
-                break
-        print("length of recording list", len(self.recording_list))
-        if self.recording_list:
-            return np.concatenate(self.recording_list, axis=0)
-        else:
-            print("Recording hasn't started yet!")
-            return []
+from utils.sound_recorder import SoundRecorder
+from utils.reward_functions import amplitude_reward, onset_rewards
+from utils.psyonic_func import get_velocity, vel_clip_action, get_acceleration
 
 
-#TODO: 1. Add Timer to check if the action commandding rate is 50HZ (0.02sec)
 class PsyonicForReal():
     def __init__(self,
                  name = "Learning Make Well-Sound for Real Robot",
@@ -127,62 +52,7 @@ class PsyonicForReal():
         rospy.init_node('psyonic_for_real', anonymous=True)
         self.QPosPublisher = QPosPublisher()
         
-    # Calculation Functions - Obeservations
-    def get_velocity(self, prev_action, curr_action):
-        vel = (curr_action - prev_action) / (1 / self.ros_rate) # 50HZ, ros_rate
-        return vel
     
-    def vel_clip_action(self, prev_action, action, min_vel=-8.0, max_vel=8.0):
-        vel = self.get_velocity(prev_action, action)
-        vel_clip = np.clip(vel, min_vel, max_vel)
-        delta_action = vel_clip * (1 / (self.ros_rate))
-        curr_action = prev_action + delta_action
-        return curr_action, vel_clip
-    
-    def get_acceleration(self, prev_vel, curr_vel):
-        acc = (curr_vel - prev_vel) / (1 / self.ros_rate)
-        return acc
-    
-    def amplitude_reward(self, audio_data_step_window, ref_data_step_window, amp_scale=1e2):
-        mean_amp = np.mean(abs(audio_data_step_window))* amp_scale
-        if np.isnan(mean_amp):
-                    mean_amp = 0
-        mean_ref_amp = np.mean(abs(ref_data_step_window))* amp_scale
-        gap_amp = np.abs(mean_amp - mean_ref_amp)
-        amp_reward = np.exp(-gap_amp)
-        return amp_reward, mean_amp
-    
-    def onset_timing_hit_reward(self, audio_data, ref_audio, ref_sr):
-        audio_onset = audio_data / np.max(audio_data)
-        audio_ref_onset = ref_audio / np.max(ref_audio)
-        # Reference sound Onset
-        onset_env_ref = librosa.onset.onset_strength(y=audio_ref_onset, sr=ref_sr)
-        norm_onset_env_ref = onset_env_ref / np.max(onset_env_ref)
-        onset_frames_ref = librosa.onset.onset_detect(y=audio_ref_onset, sr=ref_sr)
-        beat_cnt_ref = onset_frames_ref.size
-        onset_times_ref = librosa.frames_to_time(onset_frames_ref, sr=ref_sr)
-
-        # Generated sound Onset
-        onset_env = librosa.onset.onset_strength(y=audio_onset, sr=ref_sr)
-        norm_onset_env = onset_env / np.max(onset_env)
-        onset_frames = librosa.onset.onset_detect(y=audio_onset, sr=ref_sr)
-        beat_cnt = onset_frames.size
-        onset_times = librosa.frames_to_time(onset_frames,sr=ref_sr)
-
-        # Eq(2). Onset strength reward
-        dtw_onset, _ = fastdtw(norm_onset_env, norm_onset_env_ref) # Onset DTW
-        onset_reward = (-dtw_onset)
-        # Eq(3). Onset timing reward
-        # timing_reward = np.exp(-euclidean(onset_times_ref, onset_times))
-        # Eq(4). Hit reward
-        if beat_cnt_ref == beat_cnt:
-            hit_reward = beat_cnt
-        else:
-            hit_reward = 0
-
-        return onset_reward, hit_reward
-    
-
     def sample_trajectory(self, PPO_agent, buffer, max_step, episode_len, max_pos, min_vel, max_vel, samplerate):
         obs_trajectory = []
         act_trajectory = []
@@ -215,15 +85,15 @@ class PsyonicForReal():
             
             # Get action from actor
             action, log_prob, val = PPO_agent.get_action(obs)
-            curr_action, vel_clip = self.vel_clip_action(prev_action, action, min_vel=min_vel, max_vel=max_vel) # radian
+            curr_action, vel_clip = vel_clip_action(prev_action, action, min_vel=min_vel, max_vel=max_vel, ros_rate=self.ros_rate) # radian
 
             curr_action = np.clip(curr_action, self.max_pose, self.initial_pose)
 
             control_joint_pos = curr_action * (180./3.14)
             self.QPosPublisher.publish_once(control_joint_pos) # Publish action 0.02 sec
 
-            velocity = curr_action - prev_action
-            acceleration = self.get_acceleration(pre_velocity, velocity)
+            velocity = get_velocity(prev_action, curr_action, ros_rate=self.ros_rate)
+            acceleration = get_acceleration(pre_velocity, velocity, ros_rate=self.ros_rate)
             pre_velocity = velocity
 
             # Get audio data
@@ -231,9 +101,9 @@ class PsyonicForReal():
             print("======step:", i)
             print("==time elapsed:", cur_time - start_time)
 
-            ref_audio, ref_sr = librosa.load(self.ref_audio_path) # load reference audio
+            ref_audio, ref_sr = librosa.load(self.ref_audio_path, sr=44100) # load reference audio
             print("=ref_audio_len: ", len(ref_audio))
-            ref_audio_info = ref_audio[441* i : 441* (i + 1)]
+            ref_audio_info = ref_audio[882* i : 882* (i + 1)]
 
             audio_data = Recoder.get_current_buffer() # get current sound data
             print("=record_audio_len:", len(audio_data))
@@ -242,7 +112,7 @@ class PsyonicForReal():
             print("=ref_audio_step:", len(ref_audio_info))
             print("=audio_data_step:", len(audio_data_step))
 
-            amp_reward, mean_amp = self.amplitude_reward(audio_data_step, ref_audio_info, amp_scale=1e2)
+            amp_reward, mean_amp = amplitude_reward(audio_data_step, ref_audio_info, amp_scale=1e2)
             print(f"**Amplitude Reward:{self.w_amp_rew * amp_reward}")
 
             # Set next observation
@@ -259,8 +129,11 @@ class PsyonicForReal():
                 Recoder.stop_recording()
                 audio_data = Recoder.get_current_buffer()
                 Recoder.clear_buffer()
-                wavio.write(f"result/record_audios/episode_{i}.wav", audio_data, rate=samplerate, sampwidth=3)
-                audio_data, rate = librosa.load(f"result/record_audios/episode_{i}.wav")
+
+                if not os.path.exists("result/record_audios"):
+                    os.makedirs("result/record_audios")
+                wavio.write(f"result/record_audios/episode_{i}.wav", audio_data, rate=samplerate, sampwidth=4)
+                audio_data, rate = librosa.load(f"result/record_audios/episode_{i}.wav", sr=44100)
 
                 max_amp = np.max(abs(audio_data))
                 hit_amp_th = 0.0155
@@ -268,8 +141,7 @@ class PsyonicForReal():
 
                 if max_amp > hit_amp_th: # calculate episode rewards only when the sound is load enough
                     audio_data[abs(audio_data)<hit_amp_th] = 1e-5
-                    # onset_reward, timing_reward, hit_reward = self.onset_timing_hit_reward(audio_data, ref_audio, ref_sr)
-                    onset_reward, hit_reward = self.onset_timing_hit_reward(audio_data, ref_audio, ref_sr)
+                    onset_reward, timing_reward, hit_reward = onset_rewards(audio_data, ref_audio, ref_sr)
 
                     print(f"**Onset Strength Reward:{self.w_onset_rew * onset_reward}")
                     print(f"**Onset Timing Reward:{self.w_timing_rew * timing_reward}")
