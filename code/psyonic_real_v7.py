@@ -171,8 +171,9 @@ class PsyonicForReal():
                     max_iter = 500,
                     ros_rate=50,
                     record_duration=4,
-                    n_epi = 12,
+                    n_epi = 10,     # total episode per sampling
                     k_epoch = 10,
+                    mini_batch_size = 500,
                     max_pos = 1.047, # max joint position radian
                     obs_dim = 31, # 5-finger joint position dim(6)*2, velocity dim(6)*2, acceleration dim(6), mean_amp dim(1)
                     act_dim = 6, # 5-finger joint position
@@ -195,10 +196,8 @@ class PsyonicForReal():
                     args = None):
         
         episode_len = record_duration * ros_rate # (50HZ)
-        buffer_size = episode_len * n_epi
-
-        mini_batch_size = buffer_size
-        n_step_per_update = buffer_size
+        max_steps_per_sampling = n_epi * episode_len # default 2000
+        buffer_size = max_steps_per_sampling # in PPO (on-policy), buffer size is same as the total steps per sampling
 
         PPO = PPOClass(max_pos=max_pos,
                         obs_dim=obs_dim,
@@ -228,7 +227,6 @@ class PsyonicForReal():
                                     buffer_size=buffer_size)
         
         # Set initial state for logging
-        one_epi_reward = 0
         epi_reward = 0
         epi_cnt = 0
         iter_cnt = 0
@@ -262,8 +260,10 @@ class PsyonicForReal():
 
             for i in range(max_iter):
                 iter_cnt += 1
-                epi_cnt, epi_reward, total_steps = self.sample_trajectory(PPO, PPOBuffer, buffer_size, episode_len, max_pos, min_vel, max_vel, samplerate)
-                
+                # Sample n trajectories, total steps = n * episode_len
+                epi_cnt, epi_reward, total_steps = self.sample_trajectory(PPO, PPOBuffer, max_steps_per_sampling, episode_len, max_pos, min_vel, max_vel, samplerate)
+                assert total_steps == max_steps_per_sampling, "Total steps are expected to be {max_steps_per_sampling}, but it is {total_steps}"
+
                 # PPO training update
                 for _ in range(k_epoch):
                     mini_batch_data = PPOBuffer.get_mini_batch(mini_batch_size=mini_batch_size)

@@ -16,6 +16,7 @@ def main(args):
                    ros_rate=args.ros_rate,
                    record_duration=args.record_duration,
                    n_epi=args.n_epi,
+                   mini_batch_size=args.mini_batch_size,
                    k_epoch=args.k_epoch,
                    max_pos=args.max_pos,
                    obs_dim=args.obs_dim,
@@ -47,6 +48,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_iter', type=int, default=10)
     parser.add_argument('--ros_rate', type=int, default=50)
     parser.add_argument('--record_duration', type=int, default=1)
+    parser.add_argument('--mini_batch_size', type=int, default=500)
     
     parser.add_argument('--n_epi', type=int, default=1)
     parser.add_argument('--k_epoch', type=int, default=10)
@@ -64,7 +66,7 @@ if __name__ == '__main__':
     parser.add_argument('--entropy_coef', type=float, default=0.01)
     parser.add_argument('--max_grad', type=float, default=0.5)
     parser.add_argument('--samplerate', type=int, default=44100) # Audio sample rate
-    parser.add_argument('--WANDB', type=bool, default=True)
+    parser.add_argument('--WANDB', type=bool, default=False)
     parser.add_argument('--folder', type=str, default='psyonic-experiment')
     # parser.add_argument('--weight_path', type=str, default='result/ppo/weights/')
     parser.add_argument('--weight_path', type=str, default=None)
