@@ -53,5 +53,5 @@ def onset_rewards(audio_data, ref_audio, ref_sr):
     else:
         hit_reward = 0
 
-    assert False, "Check the reward values"
+    # assert False, "Check the reward values"
     return onset_reward, hit_reward, timing_reward

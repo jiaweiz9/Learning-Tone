@@ -7,20 +7,18 @@ from psyonic_real_v7 import *
 def main(args):
     Psyonic = PsyonicForReal(ref_audio_path=args.ref_audio_path,
                              ros_rate=args.ros_rate,
-                             out_min=args.out_min,
-                             out_max=args.out_max,
                              seed=args.seed)
-    Psyonic.update(min_vel=args.min_vel,
-                   max_vel=args.max_vel,
+    Psyonic.update(
                    max_iter=args.max_iter,
                    ros_rate=args.ros_rate,
                    record_duration=args.record_duration,
                    n_epi=args.n_epi,
                    mini_batch_size=args.mini_batch_size,
                    k_epoch=args.k_epoch,
-                   max_pos=args.max_pos,
                    obs_dim=args.obs_dim,
                    act_dim=args.act_dim,
+                   min_vel=args.min_vel,
+                   max_vel=args.max_vel,
                    h_dims=args.h_dims,
                    gamma=args.gamma,
                    lmbda=args.lmbda,
@@ -40,18 +38,18 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", default=111, type=int)
-    parser.add_argument('--min_vel', type=float, default=-8.0)
-    parser.add_argument('--max_vel', type=float, default=8.0)    
+    parser.add_argument('--min_vel', type=float, default=-5.0)
+    parser.add_argument('--max_vel', type=float, default=5.0)    
     parser.add_argument('--out_min', type=float, default=0.087) 
     parser.add_argument('--out_max', type=float, default=1.047)
     parser.add_argument('--ref_audio_path', type=str, default='ref_audio/xylophone/ref_hit2.wav')
-    parser.add_argument('--max_iter', type=int, default=10)
+    parser.add_argument('--max_iter', type=int, default=2)
     parser.add_argument('--ros_rate', type=int, default=50)
-    parser.add_argument('--record_duration', type=int, default=1)
-    parser.add_argument('--mini_batch_size', type=int, default=500)
+    parser.add_argument('--record_duration', type=int, default=4)
+    parser.add_argument('--mini_batch_size', type=int, default=50)
     
-    parser.add_argument('--n_epi', type=int, default=1)
-    parser.add_argument('--k_epoch', type=int, default=10)
+    parser.add_argument('--n_epi', type=int, default=10)
+    parser.add_argument('--k_epoch', type=int, default=100)
     parser.add_argument('--max_pos', type=float, default=1.0)
     parser.add_argument('--obs_dim', type=int, default=31)
     parser.add_argument('--act_dim', type=int, default=6)

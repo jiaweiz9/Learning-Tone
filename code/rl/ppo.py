@@ -134,7 +134,6 @@ class PPOBufferClass:
     
 class ActorClass(nn.Module):
     def __init__(self,
-                 max_pos: float,
                  obs_dim: int,
                  h_dims: list,
                  act_dim: int,
@@ -143,7 +142,6 @@ class ActorClass(nn.Module):
                  lr_actor: float,
                  ):
         super(ActorClass, self).__init__()
-        self.max_pos = max_pos
         self.layers = build_mlp(in_dim=obs_dim, h_dims=h_dims, h_actv=h_actv)
         self.mu_head = nn.Linear(h_dims[-1], act_dim)
         self.mu_actv = mu_actv
@@ -206,7 +204,6 @@ class CriticClass(nn.Module):
             
 class PPOClass(nn.Module):
     def __init__(self,
-                 max_pos: float,
                  obs_dim: int,
                  act_dim: int,
                  h_dims: list,
@@ -220,7 +217,7 @@ class PPOClass(nn.Module):
                  ):
         super(PPOClass, self).__init__()
         
-        self.max_pos = max_pos
+        # self.max_pos = max_pos
         self.gamma = gamma
         self.lmbda = lmbda
         self.clip_ratio = clip_ratio
@@ -228,7 +225,7 @@ class PPOClass(nn.Module):
         self.entropy_coef = entropy_coef
         self.max_grad = max_grad
         
-        self.actor = ActorClass(max_pos=max_pos,obs_dim=obs_dim,h_dims=h_dims,act_dim=act_dim,h_actv=nn.ReLU(),mu_actv=None,lr_actor=lr_actorcritic)
+        self.actor = ActorClass(obs_dim=obs_dim,h_dims=h_dims,act_dim=act_dim,h_actv=nn.ReLU(),mu_actv=None,lr_actor=lr_actorcritic)
         self.critic = CriticClass(obs_dim=obs_dim,h_dims=h_dims,val_dim=1,h_actv=nn.ReLU(),out_actv=None,lr_critic=lr_actorcritic)
         self.log_std = nn.Parameter(torch.ones(act_dim) * torch.log(torch.tensor((1.0))), requires_grad=True)
         self.optimizer = optim.Adam(self.parameters(), lr=lr_actorcritic)

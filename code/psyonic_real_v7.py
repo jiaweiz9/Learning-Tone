@@ -18,8 +18,6 @@ class PsyonicForReal():
     def __init__(self,
                  name = "Learning Make Well-Sound for Real Robot",
                  ref_audio_path = 'ref_audio/xylophone/ref_hit2.wav',
-                 out_min = 0.087,
-                 out_max = 1.047,
                  seed = 111,
                  ros_rate=50,
                  device_idx=0):
@@ -27,11 +25,11 @@ class PsyonicForReal():
         self.ref_audio_path = ref_audio_path
         self.seed = seed
         self.name = name
-        self.out_min = out_min
-        self.out_max = out_max
+        # self.out_min = out_min
+        # self.out_max = out_max
         self.initial_pose = np.array([105, 105, 105, 110, 70, -10]) * 3.14 / 180
         print("initial pose:", self.initial_pose)
-        self.max_pose = np.array([105, 105, 105, 110, 70, -25]) * 3.14 / 180
+        self.max_pose = np.array([95, 95, 95, 100, 65, -25]) * 3.14 / 180
 
         self.w_amp_rew = 1
         self.w_onset_rew = 1e2
@@ -87,7 +85,7 @@ class PsyonicForReal():
             action, log_prob, val = PPO_agent.get_action(obs)
             curr_action, vel_clip = vel_clip_action(prev_action, action, min_vel=min_vel, max_vel=max_vel, ros_rate=self.ros_rate) # radian
 
-            curr_action = np.clip(curr_action, self.max_pose, self.initial_pose)
+            curr_action = np.clip(curr_action, max_pos, self.initial_pose)
 
             control_joint_pos = curr_action * (180./3.14)
             self.QPosPublisher.publish_once(control_joint_pos) # Publish action 0.02 sec
@@ -168,13 +166,12 @@ class PsyonicForReal():
 
 
     def update(self, 
-                    max_iter = 500,
+                    max_iter = 100,
                     ros_rate=50,
                     record_duration=4,
                     n_epi = 10,     # total episode per sampling
-                    k_epoch = 10,
-                    mini_batch_size = 500,
-                    max_pos = 1.047, # max joint position radian
+                    k_epoch = 100,
+                    mini_batch_size = 100,
                     obs_dim = 31, # 5-finger joint position dim(6)*2, velocity dim(6)*2, acceleration dim(6), mean_amp dim(1)
                     act_dim = 6, # 5-finger joint position
                     h_dims = [128, 128],
@@ -186,8 +183,8 @@ class PsyonicForReal():
                     entropy_coef = 0.01,
                     max_grad = 0.5,
                     samplerate = 44100,
-                    min_vel = -8.0,
-                    max_vel =8.0,
+                    min_vel = -1.0,
+                    max_vel = 1.0,
                     SAVE_WEIGHTS = True,
                     weight_path = None,
                     weight_iter_num = None,
@@ -199,8 +196,7 @@ class PsyonicForReal():
         max_steps_per_sampling = n_epi * episode_len # default 2000
         buffer_size = max_steps_per_sampling # in PPO (on-policy), buffer size is same as the total steps per sampling
 
-        PPO = PPOClass(max_pos=max_pos,
-                        obs_dim=obs_dim,
+        PPO = PPOClass(obs_dim=obs_dim,
                         act_dim=act_dim,
                         h_dims=h_dims,
                         gamma=gamma,
@@ -261,7 +257,7 @@ class PsyonicForReal():
             for i in range(max_iter):
                 iter_cnt += 1
                 # Sample n trajectories, total steps = n * episode_len
-                epi_cnt, epi_reward, total_steps = self.sample_trajectory(PPO, PPOBuffer, max_steps_per_sampling, episode_len, max_pos, min_vel, max_vel, samplerate)
+                epi_cnt, epi_reward, total_steps = self.sample_trajectory(PPO, PPOBuffer, max_steps_per_sampling, episode_len, self.max_pose, min_vel, max_vel, samplerate)
                 assert total_steps == max_steps_per_sampling, "Total steps are expected to be {max_steps_per_sampling}, but it is {total_steps}"
 
                 # PPO training update

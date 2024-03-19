@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-
+"""
+This fake listener is used for debugging without connecting to real robot.
+"""
 import rospy
 from std_msgs.msg import Float32MultiArray
 

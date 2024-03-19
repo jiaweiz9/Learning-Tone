@@ -64,10 +64,10 @@ rostopic pub robot1/psyonic_controller std_msgs/Float32MultiArray "layout:
     stride: 0
   data_offset: 0
 data:
-- 105
-- 105
-- 105
-- 110
-- 70
-- -10
+- 105 index
+- 105 middle
+- 105 ring
+- 110 little
+- 70 thumb yaw
+- -10 thumb pitch
 "
