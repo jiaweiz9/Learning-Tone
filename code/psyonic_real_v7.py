@@ -43,7 +43,7 @@ class PsyonicForReal():
     def set_random_seed(self):
         np.random.seed(self.seed)
         torch.manual_seed(self.seed)
-        torch.cuda.manual_seed(self.seed)
+        torch.cuda.manual_seed(self.seed) 
         torch.backends.cudnn.deterministic = True
 
     def set_ros(self):
@@ -185,6 +185,7 @@ class PsyonicForReal():
                     samplerate = 44100,
                     min_vel = -1.0,
                     max_vel = 1.0,
+                    vel_decay = 1.1,
                     SAVE_WEIGHTS = True,
                     weight_path = None,
                     weight_iter_num = None,
@@ -257,6 +258,9 @@ class PsyonicForReal():
             for i in range(max_iter):
                 iter_cnt += 1
                 # Sample n trajectories, total steps = n * episode_len
+                if i % 5 == 0:
+                    max_vel = max_vel * vel_decay
+                    min_vel = min_vel * vel_decay
                 epi_cnt, epi_reward, total_steps = self.sample_trajectory(PPO, PPOBuffer, max_steps_per_sampling, episode_len, self.max_pose, min_vel, max_vel, samplerate)
                 assert total_steps == max_steps_per_sampling, "Total steps are expected to be {max_steps_per_sampling}, but it is {total_steps}"
 

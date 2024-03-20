@@ -45,7 +45,7 @@ Make sure to have these components set up and connected appropriately before run
 
 ### Running the tests
 ```bash
-python main_psyonic_sound_v7.py --seed 111 --record_duration 4 --samplerate 44100 --WANDB False
+python main_psyonic_sound_v7.py --seed 111 --record_duration 4 --samplerate 44100
 ```
 
 
@@ -64,10 +64,10 @@ rostopic pub robot1/psyonic_controller std_msgs/Float32MultiArray "layout:
     stride: 0
   data_offset: 0
 data:
-- 105 index
-- 105 middle
-- 105 ring
-- 110 little
-- 70 thumb yaw
-- -10 thumb pitch
+- 105
+- 105
+- 105
+- 110
+- 70
+- -10
 "
