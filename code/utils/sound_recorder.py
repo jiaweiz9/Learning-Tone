@@ -66,7 +66,7 @@ class SoundRecorder():
                 self.recording_list.append(self.q.get_nowait())
             except queue.Empty:
                 break
-        print("length of recording list", len(self.recording_list))
+        # print("length of recording list", len(self.recording_list))
         if self.recording_list:
             return np.concatenate(self.recording_list, axis=0)
         else:

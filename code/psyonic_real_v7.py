@@ -12,6 +12,7 @@ import wavio
 from utils.sound_recorder import SoundRecorder
 from utils.reward_functions import amplitude_reward, onset_rewards
 from utils.psyonic_func import get_velocity, vel_clip_action, get_acceleration
+from datetime import datetime
 
 
 class PsyonicForReal():
@@ -29,7 +30,7 @@ class PsyonicForReal():
         # self.out_max = out_max
         self.initial_pose = np.array([105, 105, 105, 110, 70, -10]) * 3.14 / 180
         print("initial pose:", self.initial_pose)
-        self.max_pose = np.array([95, 95, 95, 100, 65, -25]) * 3.14 / 180
+        self.max_pose = np.array([95, 95, 95, 100, 65, -35]) * 3.14 / 180
 
         self.w_amp_rew = 1
         self.w_onset_rew = 1e2
@@ -96,26 +97,26 @@ class PsyonicForReal():
 
             # Get audio data
             cur_time = time.time()
-            print("======step:", i)
-            print("==time elapsed:", cur_time - start_time)
+            # print("======step:", i)
+            # print("==time elapsed:", cur_time - start_time)
 
             ref_audio, ref_sr = librosa.load(self.ref_audio_path, sr=44100) # load reference audio
-            print("=ref_audio_len: ", len(ref_audio))
-            ref_audio_info = ref_audio[882* i : 882* (i + 1)]
+            # print("=ref_audio_len: ", len(ref_audio))
+            ref_audio_info = ref_audio[882* (i % episode_len) : 882* ((i  % episode_len) + 1)]
 
             audio_data = Recoder.get_current_buffer() # get current sound data
-            print("=record_audio_len:", len(audio_data))
+            # print("=record_audio_len:", len(audio_data))
             audio_data_step = audio_data[-882: ] # time window slicing 0.02sec
             
-            print("=ref_audio_step:", len(ref_audio_info))
-            print("=audio_data_step:", len(audio_data_step))
+            # print("=ref_audio_step:", len(ref_audio_info))
+            # print("=audio_data_step:", len(audio_data_step))
 
             amp_reward, mean_amp = amplitude_reward(audio_data_step, ref_audio_info, amp_scale=1e2)
-            print(f"**Amplitude Reward:{self.w_amp_rew * amp_reward}")
+            # print(f"**Amplitude Reward:{self.w_amp_rew * amp_reward}")
 
             # Set next observation
             mean_amp = np.asarray(mean_amp).reshape(1)
-            print("mean amp", mean_amp.shape)
+            # print("mean amp", mean_amp.shape)
             next_obs = np.concatenate((prev_action, curr_action, pre_velocity, velocity, acceleration, mean_amp), axis=0)
 
             onset_reward = 0
@@ -138,7 +139,7 @@ class PsyonicForReal():
                 episode_count += 1
 
                 if max_amp > hit_amp_th: # calculate episode rewards only when the sound is load enough
-                    audio_data[abs(audio_data)<hit_amp_th] = 1e-5
+                    audio_data[abs(audio_data) < hit_amp_th] = 1e-5
                     onset_reward, timing_reward, hit_reward = onset_rewards(audio_data, ref_audio, ref_sr)
 
                     print(f"**Onset Strength Reward:{self.w_onset_rew * onset_reward}")
@@ -146,7 +147,7 @@ class PsyonicForReal():
                     print(f"**Hit Reward:{self.w_hit_rew * hit_reward}")
                 else:
                     
-                    print(f"** You didn't touch to drum pad! **")
+                    print(f"** You didn't hit the key! **")
             
             # Total Reward
             step_reward = self.w_amp_rew * amp_reward \
@@ -169,7 +170,7 @@ class PsyonicForReal():
                     max_iter = 100,
                     ros_rate=50,
                     record_duration=4,
-                    n_epi = 10,     # total episode per sampling
+                    n_epi = 1,     # total episode per sampling
                     k_epoch = 100,
                     mini_batch_size = 100,
                     obs_dim = 31, # 5-finger joint position dim(6)*2, velocity dim(6)*2, acceleration dim(6), mean_amp dim(1)
@@ -194,7 +195,7 @@ class PsyonicForReal():
                     args = None):
         
         episode_len = record_duration * ros_rate # (50HZ)
-        max_steps_per_sampling = n_epi * episode_len # default 2000
+        max_steps_per_sampling = n_epi * episode_len 
         buffer_size = max_steps_per_sampling # in PPO (on-policy), buffer size is same as the total steps per sampling
 
         PPO = PPOClass(obs_dim=obs_dim,
@@ -236,7 +237,7 @@ class PsyonicForReal():
 
         # Set WandB
         if WANDB:
-            wandb.init(project='music', name=str(folder)+'-'+str(self.seed))
+            wandb.init(project='music', name=str(folder)+'-'+ datetime.now().strftime("%m-%d_%H-%M"))
             wandb.config.update(args)
 
         # Real-world rollouts
@@ -259,14 +260,14 @@ class PsyonicForReal():
                 iter_cnt += 1
                 # Sample n trajectories, total steps = n * episode_len
                 if i % 5 == 0:
-                    max_vel = max_vel * vel_decay
-                    min_vel = min_vel * vel_decay
-                epi_cnt, epi_reward, total_steps = self.sample_trajectory(PPO, PPOBuffer, max_steps_per_sampling, episode_len, self.max_pose, min_vel, max_vel, samplerate)
+                    max_vel = min(max_vel * vel_decay, 5)
+                    min_vel = max(min_vel * vel_decay, -5)
+                epi_cnt, epi_reward, total_steps = self.sample_trajectory(PPO, PPOBuffer, max_steps_per_sampling, episode_len, self.max_pose, min_vel=min_vel, max_vel=max_vel, samplerate=samplerate)
                 assert total_steps == max_steps_per_sampling, "Total steps are expected to be {max_steps_per_sampling}, but it is {total_steps}"
 
                 # PPO training update
                 for _ in range(k_epoch):
-                    mini_batch_data = PPOBuffer.get_mini_batch(mini_batch_size=mini_batch_size)
+                    mini_batch_data = PPOBuffer.get_mini_batch(mini_batch_size=mini_batch_size) # split data into different subsets
                     n_mini_batch = len(mini_batch_data)
                     for k in range(n_mini_batch):
                         obs_batch = mini_batch_data[k]['obs']
@@ -290,7 +291,7 @@ class PsyonicForReal():
                 mean_ep_reward = epi_reward / epi_cnt            
 
                 if WANDB:
-                    wandb.log({"Iter": iter_cnt, "AVG_REWARD": mean_ep_reward, "ACTOR_LOSS": np.mean(actor_loss_ls), "CRITIC_LOSS": np.mean(critic_loss_ls), "TOTAL_LOSS": np.mean(total_loss_ls)})
+                    wandb.log({"AVG_REWARD": mean_ep_reward, "ACTOR_LOSS": np.mean(actor_loss_ls), "CRITIC_LOSS": np.mean(critic_loss_ls), "TOTAL_LOSS": np.mean(total_loss_ls), "MAX_VELO": max_vel})
                 
                 
                 print(f"Iter={iter_cnt}, AVG_REWARD={mean_ep_reward:.2f}, ACTOR_LOSS={np.mean(actor_loss_ls):.2f}, CRITIC_LOSS={np.mean(critic_loss_ls):.2f}, TOTAL_LOSS={np.mean(total_loss_ls):.2f}")

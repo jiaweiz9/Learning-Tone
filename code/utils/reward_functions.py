@@ -14,9 +14,6 @@ def amplitude_reward(audio_data_step_window, ref_data_step_window, amp_scale=1e2
 
 
 def onset_rewards(audio_data, ref_audio, ref_sr):
-    # print("shape of audio_data", audio_data.shape)
-    # print("shape of ref_audio", ref_audio.shape)
-    # print("ref_sr", ref_sr)
 
     # Normalize audio data to 0-1
     norm_audio_rec = audio_data / np.max(audio_data)
@@ -48,10 +45,7 @@ def onset_rewards(audio_data, ref_audio, ref_sr):
     timing_reward = np.exp(-euclidean(onset_times_ref, onset_times_rec))
 
     # Eq(4). Hit reward
-    if beat_cnt_ref == beat_cnt_rec:
-        hit_reward = beat_cnt_rec
-    else:
-        hit_reward = 0
+    hit_reward = -(beat_cnt_rec - beat_cnt_ref) ** 2
 
     # assert False, "Check the reward values"
-    return onset_reward, hit_reward, timing_reward
+    return onset_reward, timing_reward, hit_reward

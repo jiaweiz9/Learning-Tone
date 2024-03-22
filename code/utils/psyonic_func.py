@@ -12,6 +12,8 @@ def get_velocity(prev_action, curr_action, ros_rate=50):
 def vel_clip_action(prev_action, action, min_vel=-1.0, max_vel=1.0, ros_rate=50):
     vel = get_velocity(prev_action, action)
     vel_clip = np.clip(vel, min_vel, max_vel)
+    assert vel_clip.all() >= min_vel
+    assert vel_clip.all() <= max_vel
     delta_action = vel_clip * (1 / (ros_rate))
     curr_action = prev_action + delta_action
     return curr_action, vel_clip
