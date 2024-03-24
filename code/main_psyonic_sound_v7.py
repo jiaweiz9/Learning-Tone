@@ -5,52 +5,28 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 from psyonic_real_v7 import *
 
 def main(args):
-    Psyonic = PsyonicForReal(ref_audio_path=args.ref_audio_path,
-                             ros_rate=args.ros_rate,
-                             seed=args.seed)
-    Psyonic.update(
-                   max_iter=args.max_iter,
-                   ros_rate=args.ros_rate,
-                   record_duration=args.record_duration,
-                   n_epi=args.n_epi,
-                   mini_batch_size=args.mini_batch_size,
-                   k_epoch=args.k_epoch,
-                   obs_dim=args.obs_dim,
-                   act_dim=args.act_dim,
-                   min_vel=args.min_vel,
-                   max_vel=args.max_vel,
-                   h_dims=args.h_dims,
-                   gamma=args.gamma,
-                   lmbda=args.lmbda,
-                   lr_actorcritic=args.lr_actorcritic,
-                   clip_ratio=args.clip_ratio,
-                   value_coef=args.value_coef,
-                   entropy_coef=args.entropy_coef,
-                   max_grad=args.max_grad,
-                   samplerate=args.samplerate,
-                   WANDB=args.WANDB,
-                   folder=args.folder,
-                   weight_path=args.weight_path,
-                   weight_iter_num=args.weight_iter_num,
-                   SAVE_WEIGHTS=args.SAVE_WEIGHTS,
-                   args=args)
+    Psyonic = PsyonicForReal(args)
+    Psyonic.update()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", default=111, type=int)
     parser.add_argument('--min_vel', type=float, default=-3.0)
-    parser.add_argument('--max_vel', type=float, default=3.0)    
-    parser.add_argument('--ref_audio_path', type=str, default='ref_audio/xylophone/ref_hit2.wav')
-    parser.add_argument('--max_iter', type=int, default=50)
+    parser.add_argument('--max_vel', type=float, default=3.0)
+    parser.add_argument('--velocity_free_coef', type=float, default=1.1)
+    parser.add_argument('--ref_audio_path', type=str, default='ref_audio/xylophone/ref_hit2_filtered.wav')
+
+    parser.add_argument('--max_iter', type=int, default=10)
     parser.add_argument('--ros_rate', type=int, default=50)
     parser.add_argument('--record_duration', type=int, default=4)
     parser.add_argument('--mini_batch_size', type=int, default=100)
     
-    parser.add_argument('--n_epi', type=int, default=1) # n_epi * 50 * record_duration = steps per sampling
+    parser.add_argument('--n_epi', type=int, default=3) # n_epi * 50 * record_duration = steps per sampling
     parser.add_argument('--k_epoch', type=int, default=50) # num of epoch for gradient descent
     parser.add_argument('--max_pos', type=float, default=1.0)
     parser.add_argument('--obs_dim', type=int, default=31)
     parser.add_argument('--act_dim', type=int, default=6)
+    parser.add_argument('--beta_dist', action="store_true")
     
     parser.add_argument('--h_dims', nargs="+", type=int, default=[128, 128]) # change this term
     parser.add_argument('--gamma', type=float, default=0.99)
@@ -63,10 +39,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_grad', type=float, default=0.5)
     parser.add_argument('--samplerate', type=int, default=44100) # Audio sample rate
     parser.add_argument('--WANDB', action="store_true")
-    parser.add_argument('--folder', type=str, default='psyonic-experiment')
-    # parser.add_argument('--weight_path', type=str, default='result/ppo/weights/')
-    parser.add_argument('--weight_path', type=str, default=None)
     parser.add_argument('--weight_iter_num', type=int, default='45')
-    parser.add_argument('--SAVE_WEIGHTS', type=bool, default=True)
+    parser.add_argument('--SAVE_WEIGHTS', action="store_true")
     args = parser.parse_args()
     main(args)

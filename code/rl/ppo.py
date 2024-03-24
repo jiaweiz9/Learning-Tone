@@ -3,7 +3,7 @@ import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from torch.distributions import Normal, LogNormal
+from torch.distributions import Normal, LogNormal, Beta
 from torch.nn.functional import relu
 
 
@@ -140,10 +140,14 @@ class ActorClass(nn.Module):
                  h_actv: nn.Module,
                  mu_actv: nn.Module,
                  lr_actor: float,
-                 ):
+                 beta_dist: bool = False):
         super(ActorClass, self).__init__()
+        self.beta_dist = beta_dist
         self.layers = build_mlp(in_dim=obs_dim, h_dims=h_dims, h_actv=h_actv)
-        self.mu_head = nn.Linear(h_dims[-1], act_dim)
+        if beta_dist:
+            self.mu_head = nn.Linear(h_dims[-1], act_dim*2)
+        else:
+            self.mu_head = nn.Linear(h_dims[-1], act_dim)
         self.mu_actv = mu_actv
         # self.apply(self._init_weights)
 
@@ -154,7 +158,14 @@ class ActorClass(nn.Module):
             mu = self.mu_actv(self.mu_head(x))
         else:
             mu = self.mu_head(x)
-        return mu
+
+        if self.beta_dist:
+            alpha, beta = torch.split(mu, mu.shape[-1]//2, dim=-1)
+            alpha = F.softplus(alpha)
+            beta = F.softplus(beta)
+            return alpha, beta
+        else:
+            return mu
 
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
@@ -213,7 +224,8 @@ class PPOClass(nn.Module):
                  clip_ratio: float,
                  value_coef: float,
                  entropy_coef: float,
-                 max_grad: float
+                 max_grad: float,
+                 beta_dist: bool = False,
                  ):
         super(PPOClass, self).__init__()
         
@@ -224,18 +236,25 @@ class PPOClass(nn.Module):
         self.value_coef = value_coef   
         self.entropy_coef = entropy_coef
         self.max_grad = max_grad
-        
-        self.actor = ActorClass(obs_dim=obs_dim,h_dims=h_dims,act_dim=act_dim,h_actv=nn.ReLU(),mu_actv=None,lr_actor=lr_actorcritic)
+        self.beta_dist = beta_dist
+        if beta_dist:
+            self.actor = ActorClass(obs_dim=obs_dim,h_dims=h_dims,act_dim=act_dim,h_actv=nn.ReLU(),mu_actv=nn.Tanh(),lr_actor=lr_actorcritic, beta_dist=beta_dist)
+        else:
+            self.actor = ActorClass(obs_dim=obs_dim,h_dims=h_dims,act_dim=act_dim,h_actv=nn.ReLU(),mu_actv=nn.Tanh(),lr_actor=lr_actorcritic)
+            self.log_std = nn.Parameter(torch.ones(act_dim) * torch.log(torch.tensor((1.0))), requires_grad=True)
         self.critic = CriticClass(obs_dim=obs_dim,h_dims=h_dims,val_dim=1,h_actv=nn.ReLU(),out_actv=None,lr_critic=lr_actorcritic)
-        self.log_std = nn.Parameter(torch.ones(act_dim) * torch.log(torch.tensor((1.0))), requires_grad=True)
         self.optimizer = optim.Adam(self.parameters(), lr=lr_actorcritic)
     
     def forward(self,
                 obs: torch.Tensor):
-        mu = self.actor(obs)
-        # mu = torch.clamp(mu, -0.16, 0.16)
+        if self.beta_dist:
+            alpha, beta = self.actor(obs)
+            dist = Beta(alpha, beta)
+        else:
+            mu = self.actor(obs)
+            # mu = torch.clamp(mu, -0.16, 0.16)
+            dist = Normal(mu, torch.exp(self.log_std))
         val = self.critic(obs)
-        dist = Normal(mu, torch.exp(self.log_std))
         return dist, val
     
     def get_action(self,

@@ -31,8 +31,8 @@ def onset_rewards(audio_data, ref_audio, ref_sr):
     onset_times_rec = librosa.onset.onset_detect(y=norm_audio_rec, sr=ref_sr, onset_envelope=onset_envelop_rec, units='time')
     beat_cnt_rec = onset_times_rec.size
 
-    print("onsert_times_ref", onset_times_ref)
-    print("onset_times", onset_times_rec)
+    print("beat_cnt_ref: ", beat_cnt_ref)
+    print("beat_cnt_rec: ", beat_cnt_rec)
 
     # Eq(2). Onset strength reward
     dtw_onset, _ = fastdtw(norm_onset_envelop_rec, norm_onset_envelop_ref) # Onset DTW
