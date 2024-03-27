@@ -49,3 +49,96 @@ def onset_rewards(audio_data, ref_audio, ref_sr):
 
     # assert False, "Check the reward values"
     return onset_reward, timing_reward, hit_reward
+
+def dtw_reward(audio_data_step_window, ref_data_step_window):
+    # onset_envelop_ref = librosa.onset.onset_strength(y=ref_data_step_window, sr=44100)
+    # print(onset_envelop_ref)
+    # norm_onset_envelop_ref = onset_envelop_ref / np.max(onset_envelop_ref) # Normalize onset strength to 0-1
+    
+    # onset_envelop_rec = librosa.onset.onset_strength(y=audio_data_step_window, sr=44100)
+    # print(onset_envelop_rec)
+    # norm_onset_envelop_rec = onset_envelop_rec / np.max(onset_envelop_rec) # Normalize onset strength to 0-1
+
+    # print("shape of norm_onset_envelop_rec: ", norm_onset_envelop_rec.shape)
+    # print("shape of norm_onset_envelop_ref: ", norm_onset_envelop_ref.shape)
+
+    dtw_onset, _ = fastdtw(audio_data_step_window, ref_data_step_window) # Onset DTW
+    dtw = (-dtw_onset)
+    return dtw
+
+
+def onset_timing_reward(audio_data_step_window, ref_data_step_window):
+    pass
+
+
+def onset_hit_reward(ref_audio, rec_audio, epi_length):
+    """Find when hitting happens in all audio data step window s, and compare with the conresponding ref data step window. 
+
+    Args:
+        ref_audio (_type_): _description_
+        rec_audio (_type_): _description_
+        epi_length (_type_): _description_
+
+    Returns:
+        hit_reward_list (_type_): _description_
+    """
+    hit_reward_list = []
+    time_step_window = rec_audio.shape[0] // epi_length
+
+    onset_hit_times_ref = librosa.onset.onset_detect(y=ref_audio, sr=44100, units='time')
+    onset_hit_times_rec = librosa.onset.onset_detect(y=rec_audio, sr=44100, units='time')
+    
+    onset_hit_times_ref = onset_hit_times_ref * 44100
+    onset_hit_times_rec = onset_hit_times_rec * 44100
+    # print("onset_hit_times_ref: ", onset_hit_times_ref)
+    # print("onset_hit_times_rec: ", onset_hit_times_rec)
+
+    for i in range(epi_length):
+        step_window_set_ref = set(range(i * 884, (i+1) * 884))
+        step_window_set_rec = set(range(i * time_step_window, (i+1) * time_step_window))
+        hit_time_ref_set = set(onset_hit_times_ref)
+        hit_time_rec_set = set(onset_hit_times_rec)
+
+        hit_count_ref = len(hit_time_ref_set.intersection(step_window_set_ref))
+        hit_count_rec = len(hit_time_rec_set.intersection(step_window_set_rec))
+
+        hit_reward = -(hit_count_rec - hit_count_ref) ** 2
+        hit_reward_list.append(hit_reward)
+
+    return hit_reward_list
+
+
+def assign_rewards_to_episode(ref_audio, rec_audio, epi_length):
+    """Asynchronous Rewards Granting: Assign rewards to all state-action pairs in an episode, when the episode is done.
+
+    Args: ref_audio (np.array): Reference audio
+          rec_audio (np.array): Generated audio
+          epi_length (int): Episode length
+
+    Returns: amp_reward_list (np.array): Amplitude reward list
+             onset_strength_reward_list (np.array): Onset strength reward list
+             onset_hit_reward_list (np.array): Onset hit reward list
+             ...(np.array): (more rewards need be added)
+    """
+    time_step_window = rec_audio.shape[0] // epi_length
+    amp_reward_list = []
+    dtw_reward_list = []
+
+    ref_audio_envelop = librosa.onset.onset_strength(y=ref_audio, sr=44100)
+    print("length of ref_audio_envelop: ", len(ref_audio_envelop))
+
+    rec_audio_envelop = librosa.onset.onset_strength(y=rec_audio, sr=44100)
+    print("length of rec_audio_envelop: ", len(rec_audio_envelop))
+
+    for i in range(epi_length):
+        audio_data_step_window = rec_audio[i * time_step_window : (i+1) * time_step_window]
+        ref_data_step_window = ref_audio[i * 884 : (i+1) * 884]
+        amp_reward, mean_amp = amplitude_reward(audio_data_step_window, ref_data_step_window)
+        dtw = dtw_reward(audio_data_step_window, ref_data_step_window)
+
+        amp_reward_list.append(amp_reward)
+        dtw_reward_list.append(dtw)
+    
+    onset_hit_reward_list = onset_hit_reward(ref_audio, rec_audio, epi_length)
+
+    return np.array(amp_reward_list), np.array(dtw_reward_list), np.array(onset_hit_reward_list)

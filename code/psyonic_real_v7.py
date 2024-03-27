@@ -10,9 +10,10 @@ import numpy as np
 import librosa
 import wavio
 from utils.sound_recorder import SoundRecorder
-from utils.reward_functions import amplitude_reward, onset_rewards
-from utils.psyonic_func import get_velocity, vel_clip_action, get_acceleration, beta_dist_to_action_space
+from utils.reward_functions import amplitude_reward, onset_rewards, assign_rewards_to_episode
+from utils.psyonic_func import get_velocity, vel_clip_action, get_acceleration, beta_dist_to_action_space, action_space_to_beta_dist
 from utils.logger import Logger
+from utils.saveload_model import save_model, load_model
 
 
 class PsyonicForReal():
@@ -38,6 +39,7 @@ class PsyonicForReal():
         self.weight_iter_num = args.weight_iter_num
         self.SAVE_WEIGHTS = args.SAVE_WEIGHTS
         self.seed = args.seed
+        self.reload_iter = args.reload_iter
 
         # action setting
         self.initial_pose = np.array([105, 105, 105, 110, 70, -10])
@@ -86,35 +88,35 @@ class PsyonicForReal():
         obs_trajectory = []
         act_trajectory = []
         reward_trajectory = []
+        val_trajectory = []
+        log_prob_trajectory = []
         info = {}
 
-        episode_reward = 0
         episode_rewards = []
-        epi_onset_rewards = []
+        epi_dtw_rewards = []
         epi_timing_rewards = []
+        epi_amp_rewards = []
         epi_hit_rewards = []
-        
+        ref_audio, ref_sr = librosa.load(self.ref_audio_path, sr=44100) # load reference audio
+
         for i in range(max_step):
 
-            # For every new episode, we reset the position to the minimum value?, obersevation to zero
             if i % episode_len == 0:
-                episode_reward = 0
-                prev_action = self.initial_pose
-                pre_velocity = np.zeros(6)
-                velocity = np.zeros(6)
-                acceleration = np.zeros(6)
+                prev_action = self.initial_pose # pre position
 
-                obs = np.concatenate((prev_action, self.initial_pose, np.zeros(19)), axis=0) # initial obersavation is initial pose with 0 velocity and 0 acceleration
-                # obs_trajectory.append(obs)
+                # shape (timestep, pre_position, curr_position, cur_amp) = (14,)
+                obs = np.concatenate((np.array([i]), prev_action, self.initial_pose, np.zeros(1)), axis=0)
 
                 # Start recording
                 Recoder = SoundRecorder(samplerate=samplerate, audio_device=None) # Bug fixed!! audio_devce=None is to use default connected device
                 Recoder.start_recording()
-                time.sleep(0.1)
                 start_time = time.time()
 
+                time.sleep(0.1)
+
             else:
-                prev_action = act_trajectory[i-1]
+                prev_action = curr_action
+                obs = next_obs
             
             # Get action from actor
             action, log_prob, val = PPO_agent.get_action(obs)
@@ -124,86 +126,97 @@ class PsyonicForReal():
             else:
                 curr_action = np.clip(action, self.pose_lower, self.pose_upper)
 
-            
+            print("action_before_clip: ", curr_action)
             # Clip action based on velocity
             curr_action, vel_clip = vel_clip_action(prev_action, curr_action, min_vel=min_vel, max_vel=max_vel, ros_rate=self.ros_rate) # radian
+            
+            print("action_after_clip: ", curr_action)
+            cur_time = time.time() if i == 0 else cur_time
 
             self.QPosPublisher.publish_once(curr_action) # Publish action 0.02 sec
 
-            velocity = get_velocity(prev_action, curr_action, ros_rate=self.ros_rate)
-            acceleration = get_acceleration(pre_velocity, velocity, ros_rate=self.ros_rate)
-
             # Get audio data
-            cur_time = time.time()
 
-            ref_audio, ref_sr = librosa.load(self.ref_audio_path, sr=44100) # load reference audio
-            ref_audio_info = ref_audio[882* (i % episode_len) : 882* ((i  % episode_len) + 1)]
+            # ref_audio_info = ref_audio[882* (i % episode_len) : 882* ((i  % episode_len) + 1)]
 
             audio_data = Recoder.get_current_buffer() # get current sound data
-            ###############TODO: decide how to match#################
-            audio_data_step = audio_data[882* (i % episode_len) : 882* ((i  % episode_len) + 1)] # time window slicing 0.02sec
-
-            amp_reward, mean_amp = amplitude_reward(audio_data_step, ref_audio_info, amp_scale=1e2)
+            # audio_data_step = audio_data[882* (i % episode_len) : 882* ((i  % episode_len) + 1)] # time window slicing 0.02sec
+            audio_data_step = audio_data[-882 : ] # 0.02 sec
+            curr_amp = np.mean(np.abs(audio_data_step))
 
             # Set next observation
-            mean_amp = np.asarray(mean_amp).reshape(1)
-            next_obs = np.concatenate((prev_action, curr_action, pre_velocity, velocity, acceleration, mean_amp), axis=0)
-            pre_velocity = velocity
+            curr_amp = np.asarray(curr_amp).reshape(1)
+            # print("curr_amp: ", curr_amp)
+            next_obs = np.concatenate((np.array([i + 1]), prev_action, curr_action, curr_amp), axis=0)
 
-            onset_reward = 0
-            timing_reward = 0
-            hit_reward = 0
+            obs_trajectory.append(obs)
+            act_trajectory.append(action_space_to_beta_dist(curr_action, self.pose_lower, self.pose_upper))
+            val_trajectory.append(val)
+            log_prob_trajectory.append(log_prob)
             
-            # Total Reward
-            step_reward = self.w_amp_rew * amp_reward
-            episode_reward += step_reward
             
             # Episode done
             if (i + 1) % episode_len == 0:
                 Recoder.stop_recording()
                 audio_data = Recoder.get_current_buffer()
-                audio_data = audio_data[:882 * episode_len].squeeze()
+
+                print("start waiting time", cur_time - start_time)
+                audio_data = audio_data.squeeze()[4410:] # remove the first 0.1 sec
                 ref_audio = ref_audio[:882 * episode_len]
                 Recoder.clear_buffer()
+                print("audio_data shape: ", audio_data.shape)
+                print("ref_audio shape: ", ref_audio.shape)
 
                 if not os.path.exists("result/record_audios"):
                     os.makedirs("result/record_audios")
                 wavio.write(f"result/record_audios/episode_{i}.wav", audio_data, rate=samplerate, sampwidth=4)
-                # audio_data, rate = librosa.load(f"result/record_audios/episode_{i}.wav", sr=44100)
 
                 max_amp = np.max(abs(audio_data))
                 hit_amp_th = 0.0155
 
                 # if max_amp > hit_amp_th: # calculate episode rewards only when the sound is load enough
                 audio_data[abs(audio_data) < hit_amp_th] = 1e-5
-                onset_reward, timing_reward, hit_reward = onset_rewards(audio_data, ref_audio, ref_sr)
-
-                done_rewards = self.w_onset_rew * onset_reward \
-                                + self.w_timing_rew * timing_reward \
-                                + self.w_hit_rew * hit_reward
+                amp_reward_list, dtw_reward_list, onset_hit_reward_list = assign_rewards_to_episode(ref_audio, audio_data, episode_len)
                 
-                step_reward += done_rewards
-                episode_reward += done_rewards
+                reward_trajectory = amp_reward_list * self.w_amp_rew \
+                                    + dtw_reward_list * self.w_onset_rew \
+                                    + onset_hit_reward_list * self.w_hit_rew
+                
+                print("amp_reward_list: ", amp_reward_list)
+                print("onset_strength_reward_list: ", dtw_reward_list)
+                print("onset_hit_reward_list: ", onset_hit_reward_list)
 
-                episode_rewards.append(episode_reward)
-                epi_timing_rewards.append(timing_reward * self.w_timing_rew)
-                epi_onset_rewards.append(onset_reward * self.w_onset_rew)
-                epi_hit_rewards.append(hit_reward * self.w_hit_rew)
-                    
-                # else:
-                #     print(f"** Pysonic didn't hit the key! **")
-                #     episode_rewards.append(episode_reward)
-                #     epi_timing_rewards.append(0)
-                #     epi_onset_rewards.append(0)
-                #     epi_hit_rewards.append(0)
+                print("mean amp reward: ", np.mean(amp_reward_list))
+                print("mean dtw reward: ", np.mean(dtw_reward_list))
+                print("mean onset hit reward: ", np.mean(onset_hit_reward_list))
+
+                assert len(reward_trajectory) == episode_len, len(reward_trajectory)
+                assert len(obs_trajectory) == episode_len, len(obs_trajectory)
+                assert len(act_trajectory) == episode_len, len(act_trajectory)
+
+                episode_rewards.append(np.sum(reward_trajectory))
+                # epi_timing_rewards.append()
+                epi_dtw_rewards.append(np.sum(dtw_reward_list) * self.w_onset_rew)
+                epi_hit_rewards.append(np.sum(onset_hit_reward_list) * self.w_hit_rew)
+                epi_amp_rewards.append(np.sum(amp_reward_list) * self.w_amp_rew)
+
+                for obs, action, step_reward, val, log_prob in zip(obs_trajectory, act_trajectory, reward_trajectory, val_trajectory, log_prob_trajectory):
+                    buffer.put(obs, action, step_reward, val, log_prob)
+
+                obs_trajectory = []
+                act_trajectory = []
+                reward_trajectory = []
+                val_trajectory = []
+                log_prob_trajectory = []
             
-            obs_trajectory.append(obs)
-            act_trajectory.append(curr_action)
-            reward_trajectory.append(step_reward)
-            buffer.put(obs, action, step_reward, val, log_prob)
-            obs = next_obs
 
-        info.update({"episode_rewards": episode_rewards, "epi_timing_rewards": epi_timing_rewards, "epi_onset_rewards": epi_onset_rewards, "epi_hit_rewards": epi_hit_rewards})
+        info.update({"episode_rewards": episode_rewards, 
+                     "reward_components": {
+                         "epi_amp_rewards": epi_amp_rewards, 
+                         "epi_dtw_rewards": epi_dtw_rewards, 
+                         "epi_hit_rewards": epi_hit_rewards
+                     }
+                     })
 
         return info
 
@@ -239,9 +252,9 @@ class PsyonicForReal():
 
             # Load reference audio
             # TODO: adjust amp_rate
-            amp_rate = 20 # 20 is generalization value. Compare the amplitude of the reference sound and the generated sound and adjust the value.
-            ref_audio, ref_sr = librosa.load(self.ref_audio_path) # load reference audio
-            ref_audio = ref_audio / amp_rate 
+            # amp_rate = 20 # 20 is generalization value. Compare the amplitude of the reference sound and the generated sound and adjust the value.
+            # ref_audio, ref_sr = librosa.load(self.ref_audio_path) # load reference audio
+            # ref_audio = ref_audio / amp_rate 
 
             # initial set
             control_joint_pos = self.initial_pose # 6-fingertip joint angles
@@ -249,6 +262,9 @@ class PsyonicForReal():
             print("Initial position: ", control_joint_pos)
             self.QPosPublisher.publish_once(control_joint_pos)
             print("Initial position published")
+
+            if self.reload_iter > 0:
+                PPO = load_model(PPO, "result/weights", "PPO", self.reload_iter)
 
             for i in range(self.max_iter):
                 # Set initial state for logging

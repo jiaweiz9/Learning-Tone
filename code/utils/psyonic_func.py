@@ -10,6 +10,7 @@ def get_velocity(prev_action, curr_action, ros_rate=50):
 
 # Clip the action based on the velocity limit
 def vel_clip_action(prev_action, action, min_vel=-1.0, max_vel=1.0, ros_rate=50):
+    
     vel = get_velocity(prev_action * (3.14/180), action * (3.14/180))
     vel_clip = np.clip(vel, min_vel, max_vel)
     print("vel_clip: ", vel_clip)
@@ -17,6 +18,7 @@ def vel_clip_action(prev_action, action, min_vel=-1.0, max_vel=1.0, ros_rate=50)
     assert vel_clip.all() <= max_vel
     delta_action = vel_clip * (180 / 3.14) * (1 / (ros_rate))
     curr_action = prev_action + delta_action
+    print("action_after_clip_in: ", curr_action)
     return curr_action, vel_clip
 
 
@@ -27,9 +29,13 @@ def get_acceleration(prev_vel, curr_vel, ros_rate=50):
 
 
 # TODO: Map policy output numbers to the range(init_pose ~ max_pose), instead of clipping
-def beta_dist_to_action_space(action, action_min, action_max):
-    action = action * (action_max - action_min) + action_min
+def beta_dist_to_action_space(beta_out, action_min, action_max):
+    action = beta_out * (action_max - action_min) + action_min
     return action
+
+def action_space_to_beta_dist(action, action_min, action_max):
+    beta_out = (action - action_min) / (action_max - action_min)
+    return beta_out
 
 # TODO: Clip the action based on acceleration
 def acc_clip_action():

@@ -28,21 +28,18 @@ class Logger:
             wandb.finish()
 
     def episode_reward_stat(self, reward_info: dict):
+        stat_info = {}
         mean_reward = np.mean(reward_info['episode_rewards'])
         std_reward = np.std(reward_info['episode_rewards'])
         min_reward = np.min(reward_info['episode_rewards'])
         max_reward = np.max(reward_info['episode_rewards'])
 
-        mean_onset_reward = np.mean(reward_info['epi_onset_rewards'])
-        mean_timing_reward = np.mean(reward_info['epi_timing_rewards'])
-        mean_hitting_reward = np.mean(reward_info['epi_hit_rewards'])
+        stat_info['mean_reward'] = mean_reward
+        stat_info['std_reward'] = std_reward
+        stat_info['min_reward'] = min_reward
+        stat_info['max_reward'] = max_reward
 
-        return {
-            'mean_reward': mean_reward,
-            'std_reward': std_reward,
-            'min_reward': min_reward,
-            'max_reward': max_reward,
-            'mean_onset_reward': mean_onset_reward,
-            'mean_timing_reward': mean_timing_reward,
-            'mean_hitting_reward': mean_hitting_reward
-        }
+        for key, value in reward_info['reward_components'].items():
+            stat_info['mean_' + key] = np.mean(value)
+
+        return stat_info
