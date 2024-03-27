@@ -10,11 +10,11 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--seed", default=111, type=int)
-    parser.add_argument('--min_vel', type=float, default=-3.0)
-    parser.add_argument('--max_vel', type=float, default=3.0)
+    parser.add_argument("--seed", default=10, type=int)
+    parser.add_argument('--min_vel', type=float, default=-5.0)
+    parser.add_argument('--max_vel', type=float, default=5.0)
     parser.add_argument('--velocity_free_coef', type=float, default=1.1)
-    parser.add_argument('--ref_audio_path', type=str, default='ref_audio/xylophone/ref_hit2.wav')
+    parser.add_argument('--ref_audio_path', type=str, default='ref_audio/xylophone/ref_hit2_filtered.wav')
 
     parser.add_argument('--max_iter', type=int, default=10)
     parser.add_argument('--ros_rate', type=int, default=50)
@@ -22,7 +22,7 @@ if __name__ == '__main__':
     parser.add_argument('--mini_batch_size', type=int, default=100)
     
     parser.add_argument('--n_epi', type=int, default=1) # n_epi * 50 * record_duration = steps per sampling
-    parser.add_argument('--k_epoch', type=int, default=50) # num of epoch for gradient descent
+    parser.add_argument('--k_epoch', type=int, default=10) # num of epoch for gradient descent
     parser.add_argument('--max_pos', type=float, default=1.0)
     parser.add_argument('--obs_dim', type=int, default=14)
     parser.add_argument('--act_dim', type=int, default=6)
@@ -33,7 +33,7 @@ if __name__ == '__main__':
     parser.add_argument('--gamma', type=float, default=0.99)
     parser.add_argument('--lmbda', type=float, default=0.95)
 
-    parser.add_argument('--lr_actorcritic', type=float, default=3e-4) # change this term 0.003 ~ 5e-6
+    parser.add_argument('--lr_actorcritic', type=float, default=1e-5) # change this term 0.003 ~ 5e-6
     parser.add_argument('--clip_ratio', type=float, default=0.2)
     parser.add_argument('--value_coef', type=float, default=0.5)
     parser.add_argument('--entropy_coef', type=float, default=0.01)

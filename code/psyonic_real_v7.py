@@ -21,8 +21,8 @@ class PsyonicForReal():
 
         # reward setting
         self.w_amp_rew = 1
-        self.w_onset_rew = 1e2
-        self.w_timing_rew = 1e2
+        self.w_dtw_rew = 1e2
+        # self.w_timing_rew = 1e2
         self.w_hit_rew = 1e2
 
         # recorder setting
@@ -64,7 +64,7 @@ class PsyonicForReal():
         self.beta_dist = args.beta_dist
 
         # logger setting
-        log_config = {"w_amp_rew": self.w_amp_rew, "w_onset_rew": self.w_onset_rew, "w_timing_rew": self.w_timing_rew, "w_hit_rew": self.w_hit_rew,
+        log_config = {"w_amp_rew": self.w_amp_rew, "w_dtw_rew": self.w_dtw_rew, "w_hit_rew": self.w_hit_rew,
                       "n_epi": self.n_epi, "k_epoch": self.k_epoch, "mini_batch_size": self.mini_batch_size, "intial_pose": self.initial_pose, "velocity_free_coef": self.velocity_free_coef,
                       "max_vel": self.max_vel, "obs_dim": self.obs_dim, "act_dim": self.act_dim, "beta_dist": self.beta_dist}
 
@@ -111,8 +111,8 @@ class PsyonicForReal():
                 Recoder = SoundRecorder(samplerate=samplerate, audio_device=None) # Bug fixed!! audio_devce=None is to use default connected device
                 Recoder.start_recording()
                 start_time = time.time()
-
-                time.sleep(0.1)
+                print(f"=============Iteration{i // episode_len}==========")
+                time.sleep(0.2)
 
             else:
                 prev_action = curr_action
@@ -126,11 +126,11 @@ class PsyonicForReal():
             else:
                 curr_action = np.clip(action, self.pose_lower, self.pose_upper)
 
-            print("action_before_clip: ", curr_action)
+            # print("action_before_clip: ", curr_action)
             # Clip action based on velocity
             curr_action, vel_clip = vel_clip_action(prev_action, curr_action, min_vel=min_vel, max_vel=max_vel, ros_rate=self.ros_rate) # radian
             
-            print("action_after_clip: ", curr_action)
+            # print("action_after_clip: ", curr_action)
             cur_time = time.time() if i == 0 else cur_time
 
             self.QPosPublisher.publish_once(curr_action) # Publish action 0.02 sec
@@ -161,34 +161,36 @@ class PsyonicForReal():
                 audio_data = Recoder.get_current_buffer()
 
                 print("start waiting time", cur_time - start_time)
-                audio_data = audio_data.squeeze()[4410:] # remove the first 0.1 sec
+                audio_data = audio_data.squeeze()[8820:] # remove the first 0.1 sec
                 ref_audio = ref_audio[:882 * episode_len]
+                hit_amp_th = 0.0155
+                audio_data[abs(audio_data) < hit_amp_th] = 1e-5
+
                 Recoder.clear_buffer()
                 print("audio_data shape: ", audio_data.shape)
                 print("ref_audio shape: ", ref_audio.shape)
 
                 if not os.path.exists("result/record_audios"):
                     os.makedirs("result/record_audios")
-                wavio.write(f"result/record_audios/episode_{i}.wav", audio_data, rate=samplerate, sampwidth=4)
+                iter = (i + 1) // episode_len 
+                wavio.write(f"result/record_audios/iter_{iter}.wav", audio_data, rate=samplerate, sampwidth=4)
 
                 max_amp = np.max(abs(audio_data))
-                hit_amp_th = 0.0155
 
                 # if max_amp > hit_amp_th: # calculate episode rewards only when the sound is load enough
-                audio_data[abs(audio_data) < hit_amp_th] = 1e-5
-                amp_reward_list, dtw_reward_list, onset_hit_reward_list = assign_rewards_to_episode(ref_audio, audio_data, episode_len)
+                amp_reward_list, dtw_reward_list, hit_reward_list = assign_rewards_to_episode(ref_audio, audio_data, episode_len)
                 
                 reward_trajectory = amp_reward_list * self.w_amp_rew \
-                                    + dtw_reward_list * self.w_onset_rew \
-                                    + onset_hit_reward_list * self.w_hit_rew
+                                    + dtw_reward_list * self.w_dtw_rew \
+                                    + hit_reward_list * self.w_hit_rew
                 
                 print("amp_reward_list: ", amp_reward_list)
                 print("onset_strength_reward_list: ", dtw_reward_list)
-                print("onset_hit_reward_list: ", onset_hit_reward_list)
+                print("onset_hit_reward_list: ", hit_reward_list)
 
                 print("mean amp reward: ", np.mean(amp_reward_list))
                 print("mean dtw reward: ", np.mean(dtw_reward_list))
-                print("mean onset hit reward: ", np.mean(onset_hit_reward_list))
+                print("mean onset hit reward: ", np.mean(hit_reward_list))
 
                 assert len(reward_trajectory) == episode_len, len(reward_trajectory)
                 assert len(obs_trajectory) == episode_len, len(obs_trajectory)
@@ -196,8 +198,8 @@ class PsyonicForReal():
 
                 episode_rewards.append(np.sum(reward_trajectory))
                 # epi_timing_rewards.append()
-                epi_dtw_rewards.append(np.sum(dtw_reward_list) * self.w_onset_rew)
-                epi_hit_rewards.append(np.sum(onset_hit_reward_list) * self.w_hit_rew)
+                epi_dtw_rewards.append(np.sum(dtw_reward_list) * self.w_dtw_rew)
+                epi_hit_rewards.append(np.sum(hit_reward_list) * self.w_hit_rew)
                 epi_amp_rewards.append(np.sum(amp_reward_list) * self.w_amp_rew)
 
                 for obs, action, step_reward, val, log_prob in zip(obs_trajectory, act_trajectory, reward_trajectory, val_trajectory, log_prob_trajectory):

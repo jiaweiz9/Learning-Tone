@@ -84,23 +84,32 @@ def onset_hit_reward(ref_audio, rec_audio, epi_length):
     """
     hit_reward_list = []
     time_step_window = rec_audio.shape[0] // epi_length
+    
+    # ref_audio = ref_audio / np.max(ref_audio)
+    # rec_audio = rec_audio / np.max(rec_audio)
+    if np.max(np.abs(rec_audio)) < 0.05:
+        onset_hit_times_rec = np.array([])
+    else:
+        onset_hit_times_rec = librosa.onset.onset_detect(y=rec_audio, sr=44100, units='time')
 
     onset_hit_times_ref = librosa.onset.onset_detect(y=ref_audio, sr=44100, units='time')
-    onset_hit_times_rec = librosa.onset.onset_detect(y=rec_audio, sr=44100, units='time')
     
-    onset_hit_times_ref = onset_hit_times_ref * 44100
-    onset_hit_times_rec = onset_hit_times_rec * 44100
+    onset_hit_times_ref = (onset_hit_times_ref * 44100).astype(int)
+    onset_hit_times_rec = (onset_hit_times_rec * 44100).astype(int)
+    
     # print("onset_hit_times_ref: ", onset_hit_times_ref)
     # print("onset_hit_times_rec: ", onset_hit_times_rec)
+    hit_time_ref_set = set(onset_hit_times_ref)
+    hit_time_rec_set = set(onset_hit_times_rec)
+    # print(hit_time_rec_set)
+    # print(hit_time_ref_set)
 
     for i in range(epi_length):
         step_window_set_ref = set(range(i * 884, (i+1) * 884))
         step_window_set_rec = set(range(i * time_step_window, (i+1) * time_step_window))
-        hit_time_ref_set = set(onset_hit_times_ref)
-        hit_time_rec_set = set(onset_hit_times_rec)
 
-        hit_count_ref = len(hit_time_ref_set.intersection(step_window_set_ref))
-        hit_count_rec = len(hit_time_rec_set.intersection(step_window_set_rec))
+        hit_count_ref = len(step_window_set_ref.intersection(hit_time_ref_set))
+        hit_count_rec = len(step_window_set_rec.intersection(hit_time_rec_set))
 
         hit_reward = -(hit_count_rec - hit_count_ref) ** 2
         hit_reward_list.append(hit_reward)

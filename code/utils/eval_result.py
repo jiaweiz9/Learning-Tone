@@ -47,9 +47,9 @@ def visualize_reward_components(ref_audio, audio_data, epi_length):
     axs[1].set_xlabel('Time (s)')
     axs[1].set_ylabel('Amplitude')
 
-    amp_coef = 2.0
+    amp_coef = 1.0
     dtw_coef = 1.0
-    hit_coef = 5.0
+    hit_coef = 10.0
     # Plot reward components
     axs[2].plot(range(epi_length), amp_reward_list * amp_coef, color='red', label='Amplitude Reward')
     axs[2].plot(range(epi_length), dtw_reward_list * dtw_coef, color='green', label='DTW Reward')
@@ -68,7 +68,7 @@ def visualize_reward_components(ref_audio, audio_data, epi_length):
 if __name__ == '__main__':
     # Load the reference audio and the performance audio
     ref_audio, sr = librosa.load('ref_audio/xylophone/ref_hit2.wav', sr=None)
-    audio_data, sr = librosa.load('result/record_audios/episode_399.wav', sr=None)
+    audio_data, sr = librosa.load('result/record_audios/episode_199.wav', sr=None)
 
     # Visualize the reference audio and the performance audio
     # visualize_audio(ref_audio, audio_data, sr)
