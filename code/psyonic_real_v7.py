@@ -43,8 +43,10 @@ class PsyonicForReal():
 
         # action setting
         self.initial_pose = np.array([105, 105, 105, 110, 70, -10])
-        self.pose_upper = np.array([105, 105, 105, 110, 70, -10])
-        self.pose_lower = np.array([95, 95, 95, 100, 65, -35])
+        # self.pose_upper = np.array([105, 105, 105, 110, 70, -10])
+        # self.pose_lower = np.array([95, 95, 95, 100, 65, -35])
+        self.pose_upper = np.array([-10])
+        self.pose_lower = np.array([-35])
         print("initial pose:", self.initial_pose)
         self.velocity_free_coef = args.velocity_free_coef
         self.min_vel = args.min_vel
@@ -102,16 +104,15 @@ class PsyonicForReal():
         for i in range(max_step):
 
             if i % episode_len == 0:
-                prev_action = self.initial_pose # pre position
-
+                prev_action = self.initial_pose[-1:] # pre position
+                curr_action = self.initial_pose[-1:] # current position
                 # shape (timestep, pre_position, curr_position, cur_amp) = (14,)
-                obs = np.concatenate((np.array([i]), prev_action, self.initial_pose, np.zeros(1)), axis=0)
+                obs = np.concatenate((np.array([i]), prev_action, curr_action, np.zeros(1)), axis=0)
 
                 # Start recording
                 Recoder = SoundRecorder(samplerate=samplerate, audio_device=None) # Bug fixed!! audio_devce=None is to use default connected device
                 Recoder.start_recording()
                 start_time = time.time()
-                print(f"=============Iteration{i // episode_len}==========")
                 time.sleep(0.2)
 
             else:
@@ -133,7 +134,8 @@ class PsyonicForReal():
             # print("action_after_clip: ", curr_action)
             cur_time = time.time() if i == 0 else cur_time
 
-            self.QPosPublisher.publish_once(curr_action) # Publish action 0.02 sec
+            publish_pose = np.concatenate((self.initial_pose[:-1], curr_action), axis=0)
+            self.QPosPublisher.publish_once(publish_pose) # Publish action 0.02 sec
 
             # Get audio data
 
@@ -172,8 +174,7 @@ class PsyonicForReal():
 
                 if not os.path.exists("result/record_audios"):
                     os.makedirs("result/record_audios")
-                iter = (i + 1) // episode_len 
-                wavio.write(f"result/record_audios/iter_{iter}.wav", audio_data, rate=samplerate, sampwidth=4)
+                wavio.write(f"result/record_audios/episode_{i}.wav", audio_data, rate=samplerate, sampwidth=4)
 
                 max_amp = np.max(abs(audio_data))
 
@@ -274,6 +275,7 @@ class PsyonicForReal():
                 critic_loss_ls = []
                 total_loss_ls = []
 
+                print("=================Iteration: ", i, "=================")
                 # Sample n trajectories, total steps = n * episode_len
                 if (i + 1) % 5 == 0:
                     self.max_vel = min(self.max_vel * self.velocity_free_coef, 5)
