@@ -42,10 +42,10 @@ class PsyonicForReal():
         self.reload_iter = args.reload_iter
 
         # action setting
-        self.initial_pose = np.array([105, 105, 105, 110, 70, -10])
+        self.initial_pose = np.array([105, 105, 105, 110, 70, -0])
         # self.pose_upper = np.array([105, 105, 105, 110, 70, -10])
         # self.pose_lower = np.array([95, 95, 95, 100, 65, -35])
-        self.pose_upper = np.array([-10])
+        self.pose_upper = np.array([-0])
         self.pose_lower = np.array([-35])
         print("initial pose:", self.initial_pose)
         self.velocity_free_coef = args.velocity_free_coef

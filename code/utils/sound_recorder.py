@@ -2,6 +2,7 @@ import numpy as np
 import sounddevice as sd
 import queue
 import threading
+import time
 
 class SoundRecorder():
     def __init__(self, samplerate=44100, audio_device=None):
@@ -17,6 +18,7 @@ class SoundRecorder():
 
     def start_recording(self):
         if not self.is_recording:
+            print("enter recording")
             self.is_recording = True
             self.recording_thread = threading.Thread(target=self._record_audio)
             self.recording_thread.daemon = True
@@ -37,7 +39,7 @@ class SoundRecorder():
                 # self.recording_list.append(audio_chunk)
                 self.q.put(audio_chunk)
                 # print("put audio chunk")
-            print("Recording stopped!")
+        print("Recording stopped!")
 
     def stop_recording(self):
         # Stops the ongoing audio recording.
@@ -72,3 +74,15 @@ class SoundRecorder():
         else:
             print("Recording hasn't started yet!")
             return []
+        
+
+if __name__ == "__main__":
+    sound_recorder = SoundRecorder()
+    sound_recorder.start_recording()
+
+    time.sleep(2)
+
+    data = sound_recorder.get_current_buffer()
+    print(data)
+    sound_recorder.stop_recording()
+    sound_recorder.clear_buffer()
