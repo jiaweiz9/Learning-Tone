@@ -75,6 +75,16 @@ class SoundRecorder():
             print("Recording hasn't started yet!")
             return []
         
+    def record_callback(self, indata, frames, time, status):
+        if status:
+            print(status)
+        self.q.put(indata[:, 0])
+
+    def setup_stream(self):
+        self.stream = sd.InputStream(samplerate = self.sample_rate, channels = 1, dtype='float32', 
+                                     device = self.audio_idx, callback = self.record_callback)
+        
+        
 
 if __name__ == "__main__":
     sound_recorder = SoundRecorder()
