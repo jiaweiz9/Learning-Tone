@@ -86,7 +86,7 @@ class PsyonicForReal():
         self.QPosPublisher = QPosPublisher()
     
     
-    def sample_trajectory(self, PPO_agent, buffer, max_step, episode_len, min_vel, max_vel, samplerate):
+    def sample_trajectory(self, iter, PPO_agent, buffer, max_step, episode_len, min_vel, max_vel, samplerate):
         obs_trajectory = []
         act_trajectory = []
         reward_trajectory = []
@@ -113,7 +113,6 @@ class PsyonicForReal():
                 Recoder = SoundRecorder(samplerate=samplerate, audio_device=None) # Bug fixed!! audio_devce=None is to use default connected device
                 Recoder.start_recording()
                 start_time = time.time()
-                time.sleep(0.2)
 
             else:
                 prev_action = curr_action
@@ -132,7 +131,6 @@ class PsyonicForReal():
             curr_action, vel_clip = vel_clip_action(prev_action, curr_action, min_vel=min_vel, max_vel=max_vel, ros_rate=self.ros_rate) # radian
             
             # print("action_after_clip: ", curr_action)
-            cur_time = time.time() if i == 0 else cur_time
 
             publish_pose = np.concatenate((self.initial_pose[:-1], curr_action), axis=0)
             self.QPosPublisher.publish_once(publish_pose) # Publish action 0.02 sec
@@ -140,8 +138,11 @@ class PsyonicForReal():
             # Get audio data
 
             # ref_audio_info = ref_audio[882* (i % episode_len) : 882* ((i  % episode_len) + 1)]
-
-            audio_data = Recoder.get_current_buffer() # get current sound data
+            while True:
+                audio_data = Recoder.get_current_buffer() # get current sound data
+                if len(audio_data) > 0:
+                    cur_time = time.time() if i == 0 else cur_time
+                    break
             # audio_data_step = audio_data[882* (i % episode_len) : 882* ((i  % episode_len) + 1)] # time window slicing 0.02sec
             audio_data_step = audio_data[-882 : ] # 0.02 sec
             curr_amp = np.mean(np.abs(audio_data_step))
@@ -163,7 +164,7 @@ class PsyonicForReal():
                 audio_data = Recoder.get_current_buffer()
 
                 print("start waiting time", cur_time - start_time)
-                audio_data = audio_data.squeeze()[8820:] # remove the first 0.1 sec
+                audio_data = audio_data.squeeze()[8820:] # remove the waiting time
                 ref_audio = ref_audio[:882 * episode_len]
                 hit_amp_th = 0.0155
                 audio_data[abs(audio_data) < hit_amp_th] = 1e-5
@@ -174,7 +175,7 @@ class PsyonicForReal():
 
                 if not os.path.exists("result/record_audios"):
                     os.makedirs("result/record_audios")
-                wavio.write(f"result/record_audios/episode_{i}.wav", audio_data, rate=samplerate, sampwidth=4)
+                wavio.write(f"result/record_audios/cur_episode.wav", audio_data, rate=samplerate, sampwidth=4)
 
                 max_amp = np.max(abs(audio_data))
 
@@ -211,6 +212,11 @@ class PsyonicForReal():
                 reward_trajectory = []
                 val_trajectory = []
                 log_prob_trajectory = []
+
+                if (iter * self.n_epi + (i + 1) // episode_len) % 10 == 0:
+                    wavio.write(f"result/record_audios/episode_{iter * self.n_epi + (i + 1) // episode_len}.wav", 
+                                audio_data, rate=samplerate, sampwidth=4)
+
             
 
         info.update({"episode_rewards": episode_rewards, 
@@ -280,7 +286,7 @@ class PsyonicForReal():
                 if (i + 1) % 5 == 0:
                     self.max_vel = min(self.max_vel * self.velocity_free_coef, 5)
                     self.min_vel = max(self.min_vel * self.velocity_free_coef, -5)
-                rewards_info = self.sample_trajectory(PPO, PPOBuffer, max_steps_per_sampling, episode_len,
+                rewards_info = self.sample_trajectory(i, PPO, PPOBuffer, max_steps_per_sampling, episode_len,
                                                                           min_vel=self.min_vel, max_vel=self.max_vel, samplerate=self.samplerate)
                 info = self.logger.episode_reward_stat(rewards_info)
 

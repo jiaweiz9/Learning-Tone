@@ -68,7 +68,7 @@ def visualize_reward_components(ref_audio, audio_data, epi_length):
 if __name__ == '__main__':
     # Load the reference audio and the performance audio
     ref_audio, sr = librosa.load('ref_audio/xylophone/ref_hit2_filtered.wav', sr=None)
-    audio_data, sr = librosa.load('result/record_audios/episode_199.wav', sr=None)
+    audio_data, sr = librosa.load('result/record_audios/cur_episode.wav', sr=None)
 
     # Visualize the reference audio and the performance audio
     # visualize_audio(ref_audio, audio_data, sr)

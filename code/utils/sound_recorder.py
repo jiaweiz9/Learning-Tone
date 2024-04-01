@@ -38,7 +38,7 @@ class SoundRecorder():
                 
                 # self.recording_list.append(audio_chunk)
                 self.q.put(audio_chunk)
-                # print("put audio chunk")
+                print("put audio chunk")
         print("Recording stopped!")
 
     def stop_recording(self):
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     sound_recorder = SoundRecorder()
     sound_recorder.start_recording()
 
-    time.sleep(2)
+    time.sleep(5)
 
     data = sound_recorder.get_current_buffer()
     print(data)
