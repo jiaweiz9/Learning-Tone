@@ -38,7 +38,6 @@ class SoundRecorder():
                 
                 # self.recording_list.append(audio_chunk)
                 self.q.put(audio_chunk)
-                print("put audio chunk")
         print("Recording stopped!")
 
     def stop_recording(self):

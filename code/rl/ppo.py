@@ -24,6 +24,7 @@ def build_mlp(in_dim: int,
         else:
             layers.append(nn.Linear(h_dims[i-1], h_dims[i]))
         layers.append(h_actv)
+        layers.append(nn.BatchNorm1d(h_dims[i]))
     return nn.Sequential(*layers)
 
 def calc_gae(reward_batch: torch.Tensor,
@@ -260,6 +261,8 @@ class PPOClass(nn.Module):
     def get_action(self,
                    obs):
         obs_torch = torch.unsqueeze(torch.FloatTensor(obs), 0)
+        self.actor.eval()
+        self.critic.eval()
         dist, val = self.forward(obs_torch)
         action = dist.sample()
         log_prob = torch.sum(dist.log_prob(action), dim=-1)
@@ -289,6 +292,8 @@ class PPOClass(nn.Module):
                log_prob_batch,
                advantage_batch,
                return_batch):
+        self.actor.train()
+        self.critic.train()
         new_log_prob_batch, val_batch, entropy = self.eval_action(obs_batch, act_batch)
         ratio = torch.exp(new_log_prob_batch - log_prob_batch)
         

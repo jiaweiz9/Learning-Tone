@@ -107,7 +107,7 @@ class PsyonicForReal():
                 prev_action = self.initial_pose[-1:] # pre position
                 curr_action = self.initial_pose[-1:] # current position
                 # shape (timestep, pre_position, curr_position, cur_amp) = (14,)
-                obs = np.concatenate((np.array([i]), prev_action, curr_action, np.zeros(1)), axis=0)
+                obs = np.concatenate((np.array([i]), prev_action, curr_action), axis=0)
 
                 # Start recording
                 Recoder = SoundRecorder(samplerate=samplerate, audio_device=None) # Bug fixed!! audio_devce=None is to use default connected device
@@ -138,19 +138,20 @@ class PsyonicForReal():
             # Get audio data
 
             # ref_audio_info = ref_audio[882* (i % episode_len) : 882* ((i  % episode_len) + 1)]
-            while True:
-                audio_data = Recoder.get_current_buffer() # get current sound data
-                if len(audio_data) > 0:
-                    cur_time = time.time() if i == 0 else cur_time
-                    break
+            # while True:
+            #     audio_data = Recoder.get_current_buffer() # get current sound data
+            #     if len(audio_data) > 0:
+            #         cur_time = time.time() if i == 0 else cur_time
+            #         break
+            # audio_data = Recoder.get_current_buffer()
             # audio_data_step = audio_data[882* (i % episode_len) : 882* ((i  % episode_len) + 1)] # time window slicing 0.02sec
-            audio_data_step = audio_data[-882 : ] # 0.02 sec
-            curr_amp = np.mean(np.abs(audio_data_step))
+            # audio_data_step = audio_data[-882 : ] # 0.02 sec
+            # curr_amp = np.mean(np.abs(audio_data_step))
 
             # Set next observation
-            curr_amp = np.asarray(curr_amp).reshape(1)
+            # curr_amp = np.asarray(curr_amp).reshape(1)
             # print("curr_amp: ", curr_amp)
-            next_obs = np.concatenate((np.array([i + 1]), prev_action, curr_action, curr_amp), axis=0)
+            next_obs = np.concatenate((np.array([i + 1]), prev_action, curr_action), axis=0)
 
             obs_trajectory.append(obs)
             act_trajectory.append(action_space_to_beta_dist(curr_action, self.pose_lower, self.pose_upper))
@@ -163,7 +164,7 @@ class PsyonicForReal():
                 Recoder.stop_recording()
                 audio_data = Recoder.get_current_buffer()
 
-                print("start waiting time", cur_time - start_time)
+                # print("start waiting time", cur_time - start_time)
                 audio_data = audio_data.squeeze()[8820:] # remove the waiting time
                 ref_audio = ref_audio[:882 * episode_len]
                 hit_amp_th = 0.0155
@@ -186,13 +187,13 @@ class PsyonicForReal():
                                     + dtw_reward_list * self.w_dtw_rew \
                                     + hit_reward_list * self.w_hit_rew
                 
-                print("amp_reward_list: ", amp_reward_list)
-                print("onset_strength_reward_list: ", dtw_reward_list)
-                print("onset_hit_reward_list: ", hit_reward_list)
+                # print("amp_reward_list: ", amp_reward_list)
+                # print("onset_strength_reward_list: ", dtw_reward_list)
+                # print("onset_hit_reward_list: ", hit_reward_list)
 
-                print("mean amp reward: ", np.mean(amp_reward_list))
-                print("mean dtw reward: ", np.mean(dtw_reward_list))
-                print("mean onset hit reward: ", np.mean(hit_reward_list))
+                # print("mean amp reward: ", np.mean(amp_reward_list))
+                # print("mean dtw reward: ", np.mean(dtw_reward_list))
+                # print("mean onset hit reward: ", np.mean(hit_reward_list))
 
                 assert len(reward_trajectory) == episode_len, len(reward_trajectory)
                 assert len(obs_trajectory) == episode_len, len(obs_trajectory)
