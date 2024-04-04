@@ -100,6 +100,7 @@ class PsyonicForReal():
         epi_amp_rewards = []
         epi_hit_rewards = []
         ref_audio, ref_sr = librosa.load(self.ref_audio_path, sr=44100) # load reference audio
+        Recoder = SoundRecorder(samplerate=samplerate, audio_device=None) # Bug fixed!! audio_devce=None is to use default connected device
 
         for i in range(max_step):
 
@@ -110,7 +111,6 @@ class PsyonicForReal():
                 obs = np.concatenate((np.array([i]), prev_action, curr_action), axis=0)
 
                 # Start recording
-                Recoder = SoundRecorder(samplerate=samplerate, audio_device=None) # Bug fixed!! audio_devce=None is to use default connected device
                 Recoder.start_recording()
                 start_time = time.time()
 
