@@ -149,5 +149,6 @@ def assign_rewards_to_episode(ref_audio, rec_audio, epi_length):
         dtw_reward_list.append(dtw)
     
     onset_hit_reward_list = onset_hit_reward(ref_audio, rec_audio, epi_length)
+    print(onset_hit_reward_list)
 
     return np.array(amp_reward_list), np.array(dtw_reward_list), np.array(onset_hit_reward_list)
