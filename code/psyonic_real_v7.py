@@ -21,7 +21,7 @@ class PsyonicForReal():
 
         # reward setting
         self.w_amp_rew = 1
-        self.w_dtw_rew = 1e2
+        self.w_dtw_rew = 1
         # self.w_timing_rew = 1e2
         self.w_hit_rew = 1e2
 
@@ -176,7 +176,8 @@ class PsyonicForReal():
 
                 if not os.path.exists("result/record_audios"):
                     os.makedirs("result/record_audios")
-                wavio.write(f"result/record_audios/cur_episode.wav", audio_data, rate=samplerate, sampwidth=4)
+                episode_num = (i + 1) // episode_len
+                wavio.write(f"result/record_audios/episode_{episode_num}.wav", audio_data, rate=samplerate, sampwidth=4)
 
                 max_amp = np.max(abs(audio_data))
 
@@ -274,7 +275,7 @@ class PsyonicForReal():
             print("Initial position published")
 
             if self.reload_iter > 0:
-                PPO = load_model(PPO, "result/weights", "PPO", self.reload_iter)
+                PPO.load_state_dict(torch.load(f"result/weights/PPO_{self.reload_iter}.pth"))
 
             for i in range(self.max_iter):
                 # Set initial state for logging
@@ -313,6 +314,9 @@ class PsyonicForReal():
                 info.update({"actor_loss": np.mean(actor_loss_ls), "critic_loss": np.mean(critic_loss_ls), "total_loss": np.mean(total_loss_ls)})
                 # Log trajectory rewards, actor loss, critic loss, total loss
                 self.logger.log(info)
+
+                if self.SAVE_WEIGHTS and (i + 1) % self.weight_iter_num == 0:
+                    torch.save(PPO.state_dict(), f"result/weights/PPO_{i + 1}.pth")
 
 
 if __name__ == "__main__":

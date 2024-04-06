@@ -311,4 +311,22 @@ class PPOClass(nn.Module):
 
         return actor_loss.detach(), critic_loss.detach(), total_loss.detach()
     
-
+if __name__ == "__main__":
+    ppo = PPOClass( 
+                    obs_dim=3,
+                    act_dim=1,
+                    h_dims=[128, 128],
+                    gamma=0.99,
+                    lmbda=0.95,
+                    lr_actorcritic=1e-5,
+                    clip_ratio=0.2,
+                    value_coef=0.5,
+                    entropy_coef=0.01,
+                    max_grad=0.5,
+                    beta_dist=True
+                    )
+    # torch.save(ppo.state_dict(), "ppo_model.pth")
+    # ppo = torch.load("ppo_model.pth")
+    ppo.load_state_dict(torch.load("ppo_model.pth"))
+    print(ppo)
+    print(ppo.beta_dist)
