@@ -21,8 +21,8 @@ class PsyonicForReal():
 
         # reward setting
         self.w_amp_rew = 1
-        self.w_dtw_rew = 1
-        # self.w_timing_rew = 1e2
+        self.w_dtw_rew = 1e-1
+        self.w_timing_rew = 1e3
         self.w_hit_rew = 1e2
 
         # recorder setting
@@ -98,7 +98,7 @@ class PsyonicForReal():
         epi_dtw_rewards = []
         epi_timing_rewards = []
         epi_amp_rewards = []
-        epi_hit_rewards = []
+        epi_hit_times_rewards = []
         ref_audio, ref_sr = librosa.load(self.ref_audio_path, sr=44100) # load reference audio
         Recoder = SoundRecorder(samplerate=samplerate, audio_device=None) # Bug fixed!! audio_devce=None is to use default connected device
 
@@ -182,19 +182,15 @@ class PsyonicForReal():
                 max_amp = np.max(abs(audio_data))
 
                 # if max_amp > hit_amp_th: # calculate episode rewards only when the sound is load enough
-                amp_reward_list, dtw_reward_list, hit_reward_list = assign_rewards_to_episode(ref_audio, audio_data, episode_len)
+                amp_reward_list, dtw_reward_list, hit_times_reward, hit_timing_reward = assign_rewards_to_episode(ref_audio, audio_data, episode_len)
                 
                 reward_trajectory = amp_reward_list * self.w_amp_rew \
-                                    + dtw_reward_list * self.w_dtw_rew \
-                                    + hit_reward_list * self.w_hit_rew
+                                    + dtw_reward_list * self.w_dtw_rew
+                                    # + hit_reward_list * self.w_hit_rew
                 
-                # print("amp_reward_list: ", amp_reward_list)
-                # print("onset_strength_reward_list: ", dtw_reward_list)
-                # print("onset_hit_reward_list: ", hit_reward_list)
+                reward_trajectory[-1] += self.w_timing_rew * hit_timing_reward + self.w_hit_rew * hit_times_reward
 
-                # print("mean amp reward: ", np.mean(amp_reward_list))
-                # print("mean dtw reward: ", np.mean(dtw_reward_list))
-                # print("mean onset hit reward: ", np.mean(hit_reward_list))
+                print("Hit Timing Reward: ", hit_timing_reward)
 
                 assert len(reward_trajectory) == episode_len, len(reward_trajectory)
                 assert len(obs_trajectory) == episode_len, len(obs_trajectory)
@@ -203,7 +199,8 @@ class PsyonicForReal():
                 episode_rewards.append(np.sum(reward_trajectory))
                 # epi_timing_rewards.append()
                 epi_dtw_rewards.append(np.sum(dtw_reward_list) * self.w_dtw_rew)
-                epi_hit_rewards.append(np.sum(hit_reward_list) * self.w_hit_rew)
+                epi_timing_rewards.append(hit_timing_reward * self.w_timing_rew)
+                epi_hit_times_rewards.append(hit_times_reward * self.w_hit_rew)
                 epi_amp_rewards.append(np.sum(amp_reward_list) * self.w_amp_rew)
 
                 for obs, action, step_reward, val, log_prob in zip(obs_trajectory, act_trajectory, reward_trajectory, val_trajectory, log_prob_trajectory):
@@ -225,7 +222,8 @@ class PsyonicForReal():
                      "reward_components": {
                          "epi_amp_rewards": epi_amp_rewards, 
                          "epi_dtw_rewards": epi_dtw_rewards, 
-                         "epi_hit_rewards": epi_hit_rewards
+                         "epi_timing_rewards": epi_timing_rewards,
+                            "epi_hit_times_rewards": epi_hit_times_rewards
                      }
                      })
 

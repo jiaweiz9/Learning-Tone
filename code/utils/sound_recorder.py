@@ -131,7 +131,6 @@ class OldSoundRecorder():
                 return None
 
 
-
 if __name__ == "__main__":
     sound_recorder = SoundRecorder()
     sound_recorder.start_recording()

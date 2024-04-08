@@ -104,17 +104,23 @@ def onset_hit_reward(ref_audio, rec_audio, epi_length):
     # print(hit_time_rec_set)
     # print(hit_time_ref_set)
 
-    for i in range(epi_length):
-        step_window_set_ref = set(range(i * 884, (i+1) * 884))
-        step_window_set_rec = set(range(i * time_step_window, (i+1) * time_step_window))
+    # for i in range(epi_length):
+    #     step_window_set_ref = set(range(i * 884, (i+1) * 884))
+    #     step_window_set_rec = set(range(i * time_step_window, (i+1) * time_step_window))
 
-        hit_count_ref = len(step_window_set_ref.intersection(hit_time_ref_set))
-        hit_count_rec = len(step_window_set_rec.intersection(hit_time_rec_set))
+    #     hit_count_ref = len(step_window_set_ref.intersection(hit_time_ref_set))
+    #     hit_count_rec = len(step_window_set_rec.intersection(hit_time_rec_set))
 
-        hit_reward = -(hit_count_rec - hit_count_ref) ** 2
-        hit_reward_list.append(hit_reward)
+    #     hit_reward = -(hit_count_rec - hit_count_ref) ** 2
+    #     hit_reward_list.append(hit_reward)
+    hit_times_reward = (len(hit_time_rec_set) - len(hit_time_ref_set)) ** 2
+    
+    if len(hit_time_rec_set) != len(hit_time_ref_set):
+        timing_reward = 0
+    else:
+        timing_reward = np.exp(-euclidean(onset_hit_times_ref, onset_hit_times_rec))
 
-    return hit_reward_list
+    return hit_times_reward, timing_reward
 
 
 def assign_rewards_to_episode(ref_audio, rec_audio, epi_length):
@@ -148,7 +154,7 @@ def assign_rewards_to_episode(ref_audio, rec_audio, epi_length):
         amp_reward_list.append(amp_reward)
         dtw_reward_list.append(dtw)
     
-    onset_hit_reward_list = onset_hit_reward(ref_audio, rec_audio, epi_length)
-    print(onset_hit_reward_list)
+    hit_times_reward, hit_timing_reward = onset_hit_reward(ref_audio, rec_audio, epi_length)
+    print(hit_times_reward)
 
-    return np.array(amp_reward_list), np.array(dtw_reward_list), np.array(onset_hit_reward_list)
+    return np.array(amp_reward_list), np.array(dtw_reward_list), hit_times_reward, hit_timing_reward
