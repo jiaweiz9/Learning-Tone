@@ -182,13 +182,13 @@ class PsyonicForReal():
                 max_amp = np.max(abs(audio_data))
 
                 # if max_amp > hit_amp_th: # calculate episode rewards only when the sound is load enough
-                amp_reward_list, dtw_reward_list, hit_times_reward, hit_timing_reward = assign_rewards_to_episode(ref_audio, audio_data, episode_len)
+                amp_reward_list, dtw_reward_list, hit_timing_reward = assign_rewards_to_episode(ref_audio, audio_data, episode_len)
                 
                 reward_trajectory = amp_reward_list * self.w_amp_rew \
                                     + dtw_reward_list * self.w_dtw_rew
                                     # + hit_reward_list * self.w_hit_rew
                 
-                reward_trajectory[-1] += self.w_timing_rew * hit_timing_reward + self.w_hit_rew * hit_times_reward
+                reward_trajectory[-1] += self.w_timing_rew * hit_timing_reward
 
                 print("Hit Timing Reward: ", hit_timing_reward)
 
@@ -200,7 +200,7 @@ class PsyonicForReal():
                 # epi_timing_rewards.append()
                 epi_dtw_rewards.append(np.sum(dtw_reward_list) * self.w_dtw_rew)
                 epi_timing_rewards.append(hit_timing_reward * self.w_timing_rew)
-                epi_hit_times_rewards.append(hit_times_reward * self.w_hit_rew)
+                # epi_hit_times_rewards.append(hit_times_reward * self.w_hit_rew)
                 epi_amp_rewards.append(np.sum(amp_reward_list) * self.w_amp_rew)
 
                 for obs, action, step_reward, val, log_prob in zip(obs_trajectory, act_trajectory, reward_trajectory, val_trajectory, log_prob_trajectory):
@@ -223,7 +223,7 @@ class PsyonicForReal():
                          "epi_amp_rewards": epi_amp_rewards, 
                          "epi_dtw_rewards": epi_dtw_rewards, 
                          "epi_timing_rewards": epi_timing_rewards,
-                            "epi_hit_times_rewards": epi_hit_times_rewards
+                        #  "epi_hit_times_rewards": epi_hit_times_rewards
                      }
                      })
 

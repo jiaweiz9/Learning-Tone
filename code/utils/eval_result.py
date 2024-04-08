@@ -28,7 +28,7 @@ def visualize_audio(ref_audio, audio_data, sr):
     plt.show()
 
 def visualize_reward_components(ref_audio, audio_data, epi_length, sr):
-    amp_reward_list, dtw_reward_list, hit_reward_list = assign_rewards_to_episode(ref_audio, audio_data, epi_length)
+    amp_reward_list, dtw_reward_list, hit_timing_reward = assign_rewards_to_episode(ref_audio, audio_data, epi_length)
     time = np.arange(0, max(len(audio_data), len(ref_audio))) / sr
     ref_audio = np.pad(ref_audio, (0, len(time) - len(ref_audio)))
     audio_data = np.pad(audio_data, (0, len(time) - len(audio_data)))
@@ -48,8 +48,9 @@ def visualize_reward_components(ref_audio, audio_data, epi_length, sr):
     axs[1].set_ylabel('Amplitude')
 
     amp_coef = 1.0
-    dtw_coef = 1.0
-    hit_coef = 10.0
+    dtw_coef = 0.1
+    hit_times_coef = 10.0
+    hit_timing_coef = 10.0
     # Plot reward components
     axs[2].plot(range(epi_length), amp_reward_list * amp_coef, color='red', label='Amplitude Reward')
     axs[2].plot(range(epi_length), dtw_reward_list * dtw_coef, color='green', label='DTW Reward')
@@ -58,7 +59,8 @@ def visualize_reward_components(ref_audio, audio_data, epi_length, sr):
     axs[2].set_ylabel('Reward')
 
     # Plot the total reward
-    total_reward = amp_reward_list * amp_coef + dtw_reward_list * dtw_coef + hit_reward_list * hit_coef
+    total_reward = amp_reward_list * amp_coef + dtw_reward_list * dtw_coef
+    total_reward[-1] += hit_timing_coef * hit_timing_reward
     axs[3].plot(range(epi_length), total_reward, color='black', label='Total Reward')
     axs[3].set_title('Total Reward')
 

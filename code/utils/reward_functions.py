@@ -97,8 +97,8 @@ def onset_hit_reward(ref_audio, rec_audio, epi_length):
     onset_hit_times_ref = (onset_hit_times_ref * 44100).astype(int)
     onset_hit_times_rec = (onset_hit_times_rec * 44100).astype(int)
     
-    # print("onset_hit_times_ref: ", onset_hit_times_ref)
-    # print("onset_hit_times_rec: ", onset_hit_times_rec)
+    print("onset_hit_times_ref: ", onset_hit_times_ref)
+    print("onset_hit_times_rec: ", onset_hit_times_rec)
     hit_time_ref_set = set(onset_hit_times_ref)
     hit_time_rec_set = set(onset_hit_times_rec)
     # print(hit_time_rec_set)
@@ -113,14 +113,14 @@ def onset_hit_reward(ref_audio, rec_audio, epi_length):
 
     #     hit_reward = -(hit_count_rec - hit_count_ref) ** 2
     #     hit_reward_list.append(hit_reward)
-    hit_times_reward = (len(hit_time_rec_set) - len(hit_time_ref_set)) ** 2
+    # hit_times_reward = -(len(hit_time_rec_set) - len(hit_time_ref_set)) ** 2
     
     if len(hit_time_rec_set) != len(hit_time_ref_set):
         timing_reward = 0
     else:
-        timing_reward = np.exp(-euclidean(onset_hit_times_ref, onset_hit_times_rec))
+        timing_reward = np.exp(-euclidean(onset_hit_times_ref / np.linalg.norm(onset_hit_times_ref), onset_hit_times_rec / np.linalg.norm(onset_hit_times_rec)))
 
-    return hit_times_reward, timing_reward
+    return timing_reward
 
 
 def assign_rewards_to_episode(ref_audio, rec_audio, epi_length):
@@ -155,6 +155,7 @@ def assign_rewards_to_episode(ref_audio, rec_audio, epi_length):
         dtw_reward_list.append(dtw)
     
     hit_times_reward, hit_timing_reward = onset_hit_reward(ref_audio, rec_audio, epi_length)
-    print(hit_times_reward)
+    # print("Hit Times Reward:", hit_times_reward)
+    print("Hit Timing Reward:", hit_timing_reward)
 
-    return np.array(amp_reward_list), np.array(dtw_reward_list), hit_times_reward, hit_timing_reward
+    return np.array(amp_reward_list), np.array(dtw_reward_list), hit_timing_reward
