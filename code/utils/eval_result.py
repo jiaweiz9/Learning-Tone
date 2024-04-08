@@ -53,7 +53,7 @@ def visualize_reward_components(ref_audio, audio_data, epi_length, sr):
     # Plot reward components
     axs[2].plot(range(epi_length), amp_reward_list * amp_coef, color='red', label='Amplitude Reward')
     axs[2].plot(range(epi_length), dtw_reward_list * dtw_coef, color='green', label='DTW Reward')
-    axs[2].plot(range(epi_length), hit_reward_list * hit_coef, color='purple', label='Hit Reward')
+    # axs[2].plot(range(epi_length), hit_reward_list * hit_coef, color='purple', label='Hit Reward')
     axs[2].set_title('Reward Components')
     axs[2].set_ylabel('Reward')
 
