@@ -27,7 +27,7 @@ def visualize_audio(ref_audio, audio_data, sr):
     plt.tight_layout()
     plt.show()
 
-def visualize_reward_components(ref_audio, audio_data, epi_length):
+def visualize_reward_components(ref_audio, audio_data, epi_length, sr):
     amp_reward_list, dtw_reward_list, hit_reward_list = assign_rewards_to_episode(ref_audio, audio_data, epi_length)
     time = np.arange(0, max(len(audio_data), len(ref_audio))) / sr
     ref_audio = np.pad(ref_audio, (0, len(time) - len(ref_audio)))
@@ -67,9 +67,9 @@ def visualize_reward_components(ref_audio, audio_data, epi_length):
 
 if __name__ == '__main__':
     # Load the reference audio and the performance audio
-    ref_audio, sr = librosa.load('ref_audio/xylophone/ref_hit2.wav', sr=None)
-    audio_data, sr = librosa.load('result/record_audios/cur_episode.wav', sr=None)
+    ref_audio, sr = librosa.load('ref_audio/xylophone/ref_hit2_filtered.wav', sr=None)
+    audio_data, sr = librosa.load('result/record_audios/episode_84.wav', sr=None)
 
     # Visualize the reference audio and the performance audio
     # visualize_audio(ref_audio, audio_data, sr)
-    visualize_reward_components(ref_audio, audio_data, 200)
+    visualize_reward_components(ref_audio, audio_data, 200, sr = sr)
