@@ -176,7 +176,7 @@ class PsyonicForReal():
 
                 if not os.path.exists("result/record_audios"):
                     os.makedirs("result/record_audios")
-                episode_num = (i + 1) // episode_len
+                episode_num = (i + 1) // episode_len + iter * self.n_epi
                 wavio.write(f"result/record_audios/episode_{episode_num}.wav", audio_data, rate=samplerate, sampwidth=4)
 
                 max_amp = np.max(abs(audio_data))
@@ -215,9 +215,9 @@ class PsyonicForReal():
                 val_trajectory = []
                 log_prob_trajectory = []
 
-                if (iter * self.n_epi + (i + 1) // episode_len) % 10 == 0:
-                    wavio.write(f"result/record_audios/episode_{iter * self.n_epi + (i + 1) // episode_len}.wav", 
-                                audio_data, rate=samplerate, sampwidth=4)
+                # if (iter * self.n_epi + (i + 1) // episode_len) % 10 == 0:
+                #     wavio.write(f"result/record_audios/episode_{iter * self.n_epi + (i + 1) // episode_len}.wav", 
+                #                 audio_data, rate=samplerate, sampwidth=4)
 
             
 
