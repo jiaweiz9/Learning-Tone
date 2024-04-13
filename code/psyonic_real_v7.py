@@ -14,6 +14,7 @@ from utils.reward_functions import amplitude_reward, onset_rewards, assign_rewar
 from utils.psyonic_func import get_velocity, vel_clip_action, get_acceleration, beta_dist_to_action_space, action_space_to_beta_dist
 from utils.logger import Logger
 from utils.saveload_model import save_model, load_model
+from utils.eval_result import save_vis_reward_components
 
 
 class PsyonicForReal():
@@ -21,9 +22,9 @@ class PsyonicForReal():
 
         # reward setting
         self.w_amp_rew = 1
-        self.w_dtw_rew = 1e-1
+        self.w_dtw_rew = 1e-2
         self.w_timing_rew = 1e3
-        self.w_hit_rew = 1e2
+        self.w_hit_rew = 1
 
         # recorder setting
         self.ref_audio_path = args.ref_audio_path
@@ -168,7 +169,9 @@ class PsyonicForReal():
                 audio_data = audio_data.squeeze()[8820:] # remove the waiting time
                 ref_audio = ref_audio[:882 * episode_len]
                 hit_amp_th = 0.0155
+                # hit_amp_th = 0.005
                 audio_data[abs(audio_data) < hit_amp_th] = 1e-5
+                # ref_audio[abs(ref_audio) < hit_amp_th] = 1e-5
 
                 Recoder.clear_buffer()
                 print("audio_data shape: ", audio_data.shape)
@@ -177,29 +180,37 @@ class PsyonicForReal():
                 if not os.path.exists("result/record_audios"):
                     os.makedirs("result/record_audios")
                 episode_num = (i + 1) // episode_len + iter * self.n_epi
-                wavio.write(f"result/record_audios/episode_{episode_num}.wav", audio_data, rate=samplerate, sampwidth=4)
+                if episode_num % 10 == 0:
+                    wavio.write(f"result/record_audios/episode_{episode_num}.wav", audio_data, rate=samplerate, sampwidth=4)
 
                 max_amp = np.max(abs(audio_data))
 
                 # if max_amp > hit_amp_th: # calculate episode rewards only when the sound is load enough
-                amp_reward_list, dtw_reward_list, hit_timing_reward = assign_rewards_to_episode(ref_audio, audio_data, episode_len)
+                amp_reward_list, onset_hit_reward_list, dtw_reward = assign_rewards_to_episode(ref_audio, audio_data, episode_len)
                 
                 reward_trajectory = amp_reward_list * self.w_amp_rew \
-                                    + dtw_reward_list * self.w_dtw_rew
-                                    # + hit_reward_list * self.w_hit_rew
+                                    + onset_hit_reward_list * self.w_hit_rew
                 
-                reward_trajectory[-1] += self.w_timing_rew * hit_timing_reward
+                reward_trajectory[-1] += self.w_dtw_rew * dtw_reward
 
-                print("Hit Timing Reward: ", hit_timing_reward)
+                # print("Hit Timing Reward: ", hit_timing_reward)
 
                 assert len(reward_trajectory) == episode_len, len(reward_trajectory)
                 assert len(obs_trajectory) == episode_len, len(obs_trajectory)
                 assert len(act_trajectory) == episode_len, len(act_trajectory)
 
+                save_vis_reward_components(ref_audio, audio_data, episode_len, sr=44100, 
+                                       rewards_dict={
+                                           "Amplitude Reward": amp_reward_list * self.w_amp_rew,
+                                           "DTW Reward": dtw_reward * self.w_dtw_rew, 
+                                           "Hit Reward": onset_hit_reward_list * self.w_hit_rew,
+                                           "Total Reward": reward_trajectory}, 
+                                        img_path=f"result/vis_rewards/episode_{episode_num}.png")
+
                 episode_rewards.append(np.sum(reward_trajectory))
                 # epi_timing_rewards.append()
-                epi_dtw_rewards.append(np.sum(dtw_reward_list) * self.w_dtw_rew)
-                epi_timing_rewards.append(hit_timing_reward * self.w_timing_rew)
+                epi_dtw_rewards.append(dtw_reward * self.w_dtw_rew)
+                epi_timing_rewards.append(onset_hit_reward_list * self.w_timing_rew)
                 # epi_hit_times_rewards.append(hit_times_reward * self.w_hit_rew)
                 epi_amp_rewards.append(np.sum(amp_reward_list) * self.w_amp_rew)
 

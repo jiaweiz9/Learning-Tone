@@ -45,7 +45,7 @@ Make sure to have these components set up and connected appropriately before run
 
 ### Running the tests
 ```bash
-python main_psyonic_sound_v7.py --seed 111 --record_duration 4 --samplerate 44100 --beta_dist --max_iter 10
+python main_psyonic_sound_v7.py --seed 111 --record_duration 4 --samplerate 44100 --beta_dist --max_iter 50
 ```
 
 

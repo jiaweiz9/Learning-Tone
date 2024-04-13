@@ -14,7 +14,7 @@ if __name__ == '__main__':
     parser.add_argument('--min_vel', type=float, default=-5.0)
     parser.add_argument('--max_vel', type=float, default=5.0)
     parser.add_argument('--velocity_free_coef', type=float, default=1.1)
-    parser.add_argument('--ref_audio_path', type=str, default='ref_audio/xylophone/ref_hit2_filtered.wav')
+    parser.add_argument('--ref_audio_path', type=str, default='ref_audio/xylophone/ref_hit1_clip.wav')
 
     parser.add_argument('--max_iter', type=int, default=100)
     parser.add_argument('--ros_rate', type=int, default=50)

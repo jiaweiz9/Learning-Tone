@@ -50,7 +50,7 @@ def onset_rewards(audio_data, ref_audio, ref_sr):
     # assert False, "Check the reward values"
     return onset_reward, timing_reward, hit_reward
 
-def dtw_reward(audio_data_step_window, ref_data_step_window):
+def dtw_reward(ref_audio_envelop, rec_audio_envelop):
     # onset_envelop_ref = librosa.onset.onset_strength(y=ref_data_step_window, sr=44100)
     # print(onset_envelop_ref)
     # norm_onset_envelop_ref = onset_envelop_ref / np.max(onset_envelop_ref) # Normalize onset strength to 0-1
@@ -62,7 +62,7 @@ def dtw_reward(audio_data_step_window, ref_data_step_window):
     # print("shape of norm_onset_envelop_rec: ", norm_onset_envelop_rec.shape)
     # print("shape of norm_onset_envelop_ref: ", norm_onset_envelop_ref.shape)
 
-    dtw_onset, _ = fastdtw(audio_data_step_window, ref_data_step_window) # Onset DTW
+    dtw_onset, _ = fastdtw(ref_audio_envelop, rec_audio_envelop) # Onset DTW
     dtw = (-dtw_onset)
     return dtw
 
@@ -71,7 +71,7 @@ def onset_timing_reward(audio_data_step_window, ref_data_step_window):
     pass
 
 
-def onset_hit_reward(ref_audio, rec_audio, epi_length):
+def onset_hit_reward(ref_audio, rec_audio, epi_length, effect_window=15):
     """Find when hitting happens in all audio data step window s, and compare with the conresponding ref data step window. 
 
     Args:
@@ -99,13 +99,13 @@ def onset_hit_reward(ref_audio, rec_audio, epi_length):
     
     print("onset_hit_times_ref: ", onset_hit_times_ref)
     print("onset_hit_times_rec: ", onset_hit_times_rec)
-    hit_time_ref_set = set(onset_hit_times_ref)
-    hit_time_rec_set = set(onset_hit_times_rec)
+    # hit_time_ref_set = set(onset_hit_times_ref)
+    # hit_time_rec_set = set(onset_hit_times_rec)
     # print(hit_time_rec_set)
     # print(hit_time_ref_set)
 
     # for i in range(epi_length):
-    #     step_window_set_ref = set(range(i * 884, (i+1) * 884))
+    #     step_window_set_ref = set(range(i * 884, (i + 1) * 884))
     #     step_window_set_rec = set(range(i * time_step_window, (i+1) * time_step_window))
 
     #     hit_count_ref = len(step_window_set_ref.intersection(hit_time_ref_set))
@@ -113,49 +113,53 @@ def onset_hit_reward(ref_audio, rec_audio, epi_length):
 
     #     hit_reward = -(hit_count_rec - hit_count_ref) ** 2
     #     hit_reward_list.append(hit_reward)
-    # hit_times_reward = -(len(hit_time_rec_set) - len(hit_time_ref_set)) ** 2
-    
-    if len(hit_time_rec_set) != len(hit_time_ref_set):
-        timing_reward = 0
-    else:
-        timing_reward = np.exp(-euclidean(onset_hit_times_ref / np.linalg.norm(onset_hit_times_ref), onset_hit_times_rec / np.linalg.norm(onset_hit_times_rec)))
+    hit_time_indexes = [hit_time // time_step_window for hit_time in onset_hit_times_rec]
+    ref_hit_time_indexes = [hit_time // 882 for hit_time in onset_hit_times_ref]
+    print('hit_time_indexes: ', hit_time_indexes)
+    print('ref_hit_time_indexes: ', ref_hit_time_indexes)
 
-    return timing_reward
+    hit_reward_list = np.zeros(epi_length)
+
+    for hit_time_index in hit_time_indexes:
+        hit_reward_list[hit_time_index] = -1
+        
+        for ref_hit_time_index in ref_hit_time_indexes:
+            if abs(hit_time_index - ref_hit_time_index) < effect_window:
+                hit_reward_list[hit_time_index] = 1
+                break
+            
+    
+    # if len(hit_time_rec_set) != len(hit_time_ref_set):
+    #     timing_reward = 0
+    # else:
+    #     timing_reward = np.exp(-euclidean(onset_hit_times_ref / np.linalg.norm(onset_hit_times_ref), onset_hit_times_rec / np.linalg.norm(onset_hit_times_rec)))
+
+    return hit_reward_list
 
 
 def assign_rewards_to_episode(ref_audio, rec_audio, epi_length):
-    """Asynchronous Rewards Granting: Assign rewards to all state-action pairs in an episode, when the episode is done.
 
-    Args: ref_audio (np.array): Reference audio
-          rec_audio (np.array): Generated audio
-          epi_length (int): Episode length
-
-    Returns: amp_reward_list (np.array): Amplitude reward list
-             onset_strength_reward_list (np.array): Onset strength reward list
-             onset_hit_reward_list (np.array): Onset hit reward list
-             ...(np.array): (more rewards need be added)
-    """
     time_step_window = rec_audio.shape[0] // epi_length
     amp_reward_list = []
     dtw_reward_list = []
 
     ref_audio_envelop = librosa.onset.onset_strength(y=ref_audio, sr=44100)
-    print("length of ref_audio_envelop: ", len(ref_audio_envelop))
+    print("length of ref_audio: ", len(ref_audio))
 
     rec_audio_envelop = librosa.onset.onset_strength(y=rec_audio, sr=44100)
-    print("length of rec_audio_envelop: ", len(rec_audio_envelop))
+    print("length of rec_audio: ", len(rec_audio))
 
     for i in range(epi_length):
         audio_data_step_window = rec_audio[i * time_step_window : (i+1) * time_step_window]
         ref_data_step_window = ref_audio[i * 884 : (i+1) * 884]
         amp_reward, mean_amp = amplitude_reward(audio_data_step_window, ref_data_step_window)
-        dtw = dtw_reward(audio_data_step_window, ref_data_step_window)
+        # dtw = dtw_reward(audio_data_step_window, ref_data_step_window)
 
         amp_reward_list.append(amp_reward)
-        dtw_reward_list.append(dtw)
+        # dtw_reward_list.append(dtw)
     
-    hit_times_reward, hit_timing_reward = onset_hit_reward(ref_audio, rec_audio, epi_length)
+    onset_hit_reward_list = onset_hit_reward(ref_audio, rec_audio, epi_length)
     # print("Hit Times Reward:", hit_times_reward)
-    print("Hit Timing Reward:", hit_timing_reward)
+    # print("Hit Timing Reward:", hit_timing_reward)
 
-    return np.array(amp_reward_list), np.array(dtw_reward_list), hit_timing_reward
+    return np.array(amp_reward_list), np.array(onset_hit_reward_list), dtw_reward(ref_audio_envelop, rec_audio_envelop)
