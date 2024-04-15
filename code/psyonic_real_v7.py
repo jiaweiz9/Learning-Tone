@@ -21,7 +21,7 @@ class PsyonicForReal():
     def __init__(self, args):
 
         # reward setting
-        self.w_amp_rew = 1
+        self.w_amp_rew = 0.1
         self.w_dtw_rew = 1e-2
         self.w_timing_rew = 1e3
         self.w_hit_rew = 1
@@ -216,6 +216,10 @@ class PsyonicForReal():
 
                 for obs, action, step_reward, val, log_prob in zip(obs_trajectory, act_trajectory, reward_trajectory, val_trajectory, log_prob_trajectory):
                     buffer.put(obs, action, step_reward, val, log_prob)
+                
+                last_val = PPO_agent.get_val(next_obs)
+
+                buffer.get_gae_batch(gamma = self.gamma, lmbda = self.lmbda, last_val = last_val)
 
                 obs_trajectory = []
                 act_trajectory = []
@@ -228,7 +232,7 @@ class PsyonicForReal():
                 #                 audio_data, rate=samplerate, sampwidth=4)
 
             
-
+        
         info.update({"episode_rewards": episode_rewards, 
                      "reward_components": {
                          "epi_amp_rewards": epi_amp_rewards, 

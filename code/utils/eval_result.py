@@ -87,7 +87,7 @@ def visualize_reward_components(ref_audio, audio_data, epi_length, sr):
     plt.tight_layout()
     plt.show()
 
-def save_vis_reward_components(ref_audio, audio_data, epi_length, sr, rewards_dict, img_path):
+def save_vis_reward_components(ref_audio, audio_data, epi_length, sr, rewards_dict, img_path=None):
     component_type_count = len(rewards_dict)
     time = np.arange(0, max(len(audio_data), len(ref_audio))) / sr
     ref_audio = np.pad(ref_audio, (0, len(time) - len(ref_audio)))
@@ -135,12 +135,15 @@ def clip_audio(audio_data, sr, start_time, end_time):
 
 if __name__ == '__main__':
     # Load the reference audio and the performance audio
-    ref_audio, sr = librosa.load('ref_audio/xylophone/ref_hit1.wav', sr=None)
-    audio_data, sr = librosa.load('result/record_audios/ref_1.wav', sr=None)
+    ref_audio, sr = librosa.load('ref_audio/xylophone/ref_hit1_clip.wav', sr=None)
+    audio_data, sr = librosa.load('result/record_audios/episode_10.wav', sr=None)
 
     # Visualize the reference audio and the performance audio
-    # visualize_audio(ref_audio, audio_data, sr)
-    # visualize_reward_components(ref_audio, audio_data, 200, sr = sr)
-    ref_audio = clip_audio(ref_audio, sr, 0, 4)
-    visualize_audio_wavio(ref_audio, audio_data, sr)
-    wavio.write("ref_audio/xylophone/ref_hit1_clip_4.wav", ref_audio, sr, sampwidth=4)
+    amp_reward_list, onset_hit_reward_list, dtw_reward = assign_rewards_to_episode(ref_audio, audio_data, epi_length=100)
+
+    save_vis_reward_components(ref_audio, audio_data, epi_length=100, sr=sr, rewards_dict={
+        "Amplitude Reward": amp_reward_list * 0.1,
+        "DTW Reward": dtw_reward * 0.01, 
+        "Hit Reward": onset_hit_reward_list * 1,
+    })
+    # wavio.write("ref_audio/xylophone/ref_hit1_clip_4.wav", ref_audio, sr, sampwidth=4)

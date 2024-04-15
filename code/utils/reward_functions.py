@@ -70,8 +70,8 @@ def dtw_reward(ref_audio_envelop, rec_audio_envelop):
 def onset_timing_reward(audio_data_step_window, ref_data_step_window):
     pass
 
-
-def onset_hit_reward(ref_audio, rec_audio, epi_length, effect_window=15):
+#TODO: First use onset_strength to filter out large enough onset strength, then use onset_detect to detech onsets
+def onset_hit_reward(ref_audio, rec_audio, epi_length, effect_window=10, sr=44100):
     """Find when hitting happens in all audio data step window s, and compare with the conresponding ref data step window. 
 
     Args:
@@ -87,12 +87,19 @@ def onset_hit_reward(ref_audio, rec_audio, epi_length, effect_window=15):
     
     # ref_audio = ref_audio / np.max(ref_audio)
     # rec_audio = rec_audio / np.max(rec_audio)
+    onset_strength_envelop_rec = librosa.onset.onset_strength(rec_audio, sr=sr)
+    onset_strength_envelop_ref = librosa.onset.onset_strength(ref_audio, sr=sr)
+    print("rec_strength_shape:", onset_strength_envelop_rec.shape)
+    print("onset_strength_envelop_rec", onset_strength_envelop_rec)
+    print("ref_strength_shape:", onset_strength_envelop_ref.shape)
+    print("onset_strength_envelop_ref", onset_strength_envelop_ref)
+
     if np.max(np.abs(rec_audio)) < 0.05:
         onset_hit_times_rec = np.array([])
     else:
-        onset_hit_times_rec = librosa.onset.onset_detect(y=rec_audio, sr=44100, units='time')
+        onset_hit_times_rec = librosa.onset.onset_detect(y=rec_audio, sr=44100, units='time', normalize=True)
 
-    onset_hit_times_ref = librosa.onset.onset_detect(y=ref_audio, sr=44100, units='time')
+    onset_hit_times_ref = librosa.onset.onset_detect(y=ref_audio, sr=44100, units='time', normalize=True)
     
     onset_hit_times_ref = (onset_hit_times_ref * 44100).astype(int)
     onset_hit_times_rec = (onset_hit_times_rec * 44100).astype(int)
@@ -121,11 +128,12 @@ def onset_hit_reward(ref_audio, rec_audio, epi_length, effect_window=15):
     hit_reward_list = np.zeros(epi_length)
 
     for hit_time_index in hit_time_indexes:
-        hit_reward_list[hit_time_index] = -1
+        penalty = [(hit_time_index - ref_hit_time_index) ** 2 for ref_hit_time_index in ref_hit_time_indexes]
+        hit_reward_list[hit_time_index] = - 0.1 * min(penalty)
         
         for ref_hit_time_index in ref_hit_time_indexes:
             if abs(hit_time_index - ref_hit_time_index) < effect_window:
-                hit_reward_list[hit_time_index] = 1
+                hit_reward_list[hit_time_index] = 100 * np.exp(-abs(hit_time_index - ref_hit_time_index))
                 break
             
     
