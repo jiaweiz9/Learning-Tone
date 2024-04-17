@@ -2,7 +2,7 @@ import numpy as np
 import librosa
 import matplotlib.pyplot as plt
 import wavio
-from utils.reward_functions import assign_rewards_to_episode
+from reward_functions import assign_rewards_to_episode
 
 #TODO: Visualize the reference audio and the performed audio
 def visualize_audio(ref_audio, audio_data, sr):
@@ -124,7 +124,8 @@ def save_vis_reward_components(ref_audio, audio_data, epi_length, sr, rewards_di
     plt.tight_layout()
     if img_path is None:
         plt.show()
-    plt.savefig(img_path)
+    else:
+        plt.savefig(img_path)
 
 
 def clip_audio(audio_data, sr, start_time, end_time):

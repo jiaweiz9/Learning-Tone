@@ -87,19 +87,17 @@ def onset_hit_reward(ref_audio, rec_audio, epi_length, effect_window=10, sr=4410
     
     # ref_audio = ref_audio / np.max(ref_audio)
     # rec_audio = rec_audio / np.max(rec_audio)
-    onset_strength_envelop_rec = librosa.onset.onset_strength(rec_audio, sr=sr)
-    onset_strength_envelop_ref = librosa.onset.onset_strength(ref_audio, sr=sr)
-    print("rec_strength_shape:", onset_strength_envelop_rec.shape)
-    print("onset_strength_envelop_rec", onset_strength_envelop_rec)
-    print("ref_strength_shape:", onset_strength_envelop_ref.shape)
-    print("onset_strength_envelop_ref", onset_strength_envelop_ref)
+    onset_strength_envelop_rec = librosa.onset.onset_strength(y=rec_audio, sr=sr)
+    onset_strength_envelop_ref = librosa.onset.onset_strength(y=ref_audio, sr=sr)
+    onset_strength_envelop_rec = np.array([0 if onset_strength < 5 else onset_strength for onset_strength in onset_strength_envelop_rec])
+    onset_strength_envelop_ref = np.array([0 if onset_strength < 5 else onset_strength for onset_strength in onset_strength_envelop_ref])
 
     if np.max(np.abs(rec_audio)) < 0.05:
         onset_hit_times_rec = np.array([])
     else:
-        onset_hit_times_rec = librosa.onset.onset_detect(y=rec_audio, sr=44100, units='time', normalize=True)
+        onset_hit_times_rec = librosa.onset.onset_detect(y=rec_audio, onset_envelope=onset_strength_envelop_rec, sr=44100, units='time', normalize=True)
 
-    onset_hit_times_ref = librosa.onset.onset_detect(y=ref_audio, sr=44100, units='time', normalize=True)
+    onset_hit_times_ref = librosa.onset.onset_detect(y=ref_audio, onset_envelope=onset_strength_envelop_ref, sr=44100, units='time', normalize=True)
     
     onset_hit_times_ref = (onset_hit_times_ref * 44100).astype(int)
     onset_hit_times_rec = (onset_hit_times_rec * 44100).astype(int)
