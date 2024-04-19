@@ -2,7 +2,7 @@ import numpy as np
 import librosa
 import matplotlib.pyplot as plt
 import wavio
-from reward_functions import assign_rewards_to_episode
+from utils.reward_functions import assign_rewards_to_episode
 
 #TODO: Visualize the reference audio and the performed audio
 def visualize_audio(ref_audio, audio_data, sr):

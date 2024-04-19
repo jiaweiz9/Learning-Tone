@@ -4,10 +4,10 @@ from datetime import datetime
 
 
 class Logger:
-    def __init__(self, WANDB: bool, config: dict):
+    def __init__(self, WANDB: bool, config: dict, resume: bool):
         self.config = config
         if WANDB:
-            wandb.init(project='music', name='xylophone_experiment_' + datetime.now().strftime('%m-%d-%H-%M'), config=config)
+            wandb.init(project='music', name='xylophone_experiment_' + datetime.now().strftime('%m-%d-%H-%M'), config=config, resume=resume)
             self.logger = self._logger_wandb
         else:
             self.logger = self._logger_terminal

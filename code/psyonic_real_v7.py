@@ -22,8 +22,8 @@ class PsyonicForReal():
 
         # reward setting
         self.w_amp_rew = 0.1
-        self.w_dtw_rew = 1e-2
-        self.w_timing_rew = 1e3
+        self.w_dtw_rew = 1e-3
+        self.w_timing_rew = 1
         self.w_hit_rew = 1
 
         # recorder setting
@@ -71,7 +71,7 @@ class PsyonicForReal():
                       "n_epi": self.n_epi, "k_epoch": self.k_epoch, "mini_batch_size": self.mini_batch_size, "intial_pose": self.initial_pose, "velocity_free_coef": self.velocity_free_coef,
                       "max_vel": self.max_vel, "obs_dim": self.obs_dim, "act_dim": self.act_dim, "beta_dist": self.beta_dist}
 
-        self.logger = Logger(args.WANDB, log_config)
+        self.logger = Logger(args.WANDB, log_config, resume = self.reload_iter > 0)
         
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.set_ros()
@@ -180,7 +180,7 @@ class PsyonicForReal():
                 if not os.path.exists("result/record_audios"):
                     os.makedirs("result/record_audios")
                 episode_num = (i + 1) // episode_len + iter * self.n_epi
-                if episode_num % 10 == 0:
+                if episode_num % 50 == 0:
                     wavio.write(f"result/record_audios/episode_{episode_num}.wav", audio_data, rate=samplerate, sampwidth=4)
 
                 max_amp = np.max(abs(audio_data))
@@ -199,13 +199,14 @@ class PsyonicForReal():
                 assert len(obs_trajectory) == episode_len, len(obs_trajectory)
                 assert len(act_trajectory) == episode_len, len(act_trajectory)
 
-                save_vis_reward_components(ref_audio, audio_data, episode_len, sr=44100, 
-                                       rewards_dict={
-                                           "Amplitude Reward": amp_reward_list * self.w_amp_rew,
-                                           "DTW Reward": dtw_reward * self.w_dtw_rew, 
-                                           "Hit Reward": onset_hit_reward_list * self.w_hit_rew,
-                                           "Total Reward": reward_trajectory}, 
-                                        img_path=f"result/vis_rewards/episode_{episode_num}.png")
+                if episode_num % 10 == 0:
+                    save_vis_reward_components(ref_audio, audio_data, episode_len, sr=44100, 
+                                        rewards_dict={
+                                            "Amplitude Reward": amp_reward_list * self.w_amp_rew,
+                                            "DTW Reward": dtw_reward * self.w_dtw_rew, 
+                                            "Hit Reward": onset_hit_reward_list * self.w_hit_rew,
+                                            "Total Reward": reward_trajectory}, 
+                                            img_path=f"result/vis_rewards/episode_{episode_num}.png")
 
                 episode_rewards.append(np.sum(reward_trajectory))
                 # epi_timing_rewards.append()
@@ -288,9 +289,9 @@ class PsyonicForReal():
             print("Initial position published")
 
             if self.reload_iter > 0:
-                PPO.load_state_dict(torch.load(f"result/weights/PPO_{self.reload_iter}.pth"))
+                PPO.load_state_dict(torch.load(f"result/ppo/weights/PPO_{self.reload_iter}.pth"))
 
-            for i in range(self.max_iter):
+            for i in range(self.reload_iter, self.max_iter):
                 # Set initial state for logging
                 actor_loss_ls = []
                 critic_loss_ls = []
@@ -329,7 +330,7 @@ class PsyonicForReal():
                 self.logger.log(info)
 
                 if self.SAVE_WEIGHTS and (i + 1) % self.weight_iter_num == 0:
-                    torch.save(PPO.state_dict(), f"result/weights/PPO_{i + 1}.pth")
+                    torch.save(PPO.state_dict(), f"result/ppo/weights/PPO_{i + 1}.pth")
 
 
 if __name__ == "__main__":

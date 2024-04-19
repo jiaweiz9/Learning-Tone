@@ -89,8 +89,8 @@ def onset_hit_reward(ref_audio, rec_audio, epi_length, effect_window=10, sr=4410
     # rec_audio = rec_audio / np.max(rec_audio)
     onset_strength_envelop_rec = librosa.onset.onset_strength(y=rec_audio, sr=sr)
     onset_strength_envelop_ref = librosa.onset.onset_strength(y=ref_audio, sr=sr)
-    onset_strength_envelop_rec = np.array([0 if onset_strength < 5 else onset_strength for onset_strength in onset_strength_envelop_rec])
-    onset_strength_envelop_ref = np.array([0 if onset_strength < 5 else onset_strength for onset_strength in onset_strength_envelop_ref])
+    onset_strength_envelop_rec = np.array([0.0 if onset_strength < 5 else onset_strength for onset_strength in onset_strength_envelop_rec])
+    onset_strength_envelop_ref = np.array([0.0 if onset_strength < 5 else onset_strength for onset_strength in onset_strength_envelop_ref])
 
     if np.max(np.abs(rec_audio)) < 0.05:
         onset_hit_times_rec = np.array([])
@@ -118,7 +118,7 @@ def onset_hit_reward(ref_audio, rec_audio, epi_length, effect_window=10, sr=4410
 
     #     hit_reward = -(hit_count_rec - hit_count_ref) ** 2
     #     hit_reward_list.append(hit_reward)
-    hit_time_indexes = [hit_time // time_step_window for hit_time in onset_hit_times_rec]
+    hit_time_indexes = [hit_time * epi_length // rec_audio.shape[0] for hit_time in onset_hit_times_rec]
     ref_hit_time_indexes = [hit_time // 882 for hit_time in onset_hit_times_ref]
     print('hit_time_indexes: ', hit_time_indexes)
     print('ref_hit_time_indexes: ', ref_hit_time_indexes)
@@ -126,13 +126,13 @@ def onset_hit_reward(ref_audio, rec_audio, epi_length, effect_window=10, sr=4410
     hit_reward_list = np.zeros(epi_length)
 
     for hit_time_index in hit_time_indexes:
-        penalty = [(hit_time_index - ref_hit_time_index) ** 2 for ref_hit_time_index in ref_hit_time_indexes]
-        hit_reward_list[hit_time_index] = - 0.1 * min(penalty)
+        hit_distance = [(hit_time_index - ref_hit_time_index) ** 2 for ref_hit_time_index in ref_hit_time_indexes]
+        hit_reward_list[hit_time_index] = 10 * np.exp(-min(hit_distance))
         
-        for ref_hit_time_index in ref_hit_time_indexes:
-            if abs(hit_time_index - ref_hit_time_index) < effect_window:
-                hit_reward_list[hit_time_index] = 100 * np.exp(-abs(hit_time_index - ref_hit_time_index))
-                break
+        # for ref_hit_time_index in ref_hit_time_indexes:
+        #     if abs(hit_time_index - ref_hit_time_index) < effect_window:
+        #         hit_reward_list[hit_time_index] = 1000 * np.exp(-abs(hit_time_index - ref_hit_time_index))
+        #         break
             
     
     # if len(hit_time_rec_set) != len(hit_time_ref_set):
@@ -155,9 +155,12 @@ def assign_rewards_to_episode(ref_audio, rec_audio, epi_length):
     rec_audio_envelop = librosa.onset.onset_strength(y=rec_audio, sr=44100)
     print("length of rec_audio: ", len(rec_audio))
 
+    normalized_ref_audio = ref_audio / np.max(ref_audio)
+    normalized_rec_audio = rec_audio / np.max(rec_audio)
+
     for i in range(epi_length):
-        audio_data_step_window = rec_audio[i * time_step_window : (i+1) * time_step_window]
-        ref_data_step_window = ref_audio[i * 884 : (i+1) * 884]
+        audio_data_step_window = normalized_rec_audio[i * time_step_window : (i+1) * time_step_window]
+        ref_data_step_window = normalized_ref_audio[i * 884 : (i+1) * 884]
         amp_reward, mean_amp = amplitude_reward(audio_data_step_window, ref_data_step_window)
         # dtw = dtw_reward(audio_data_step_window, ref_data_step_window)
 
