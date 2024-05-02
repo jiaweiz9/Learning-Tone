@@ -182,5 +182,26 @@ def assign_rewards_to_episode(ref_audio, rec_audio, epi_length):
     dtw_reward_list = np.zeros(epi_length)
     dtw_reward_list[-1] = dtw_reward(ref_audio_envelop, rec_audio_envelop)
 
-
     return np.array(amp_reward_list), np.array(onset_hit_reward_list), np.array(dtw_reward_list), np.array(timing_reward_list)
+
+
+
+def rewards_for_stages(ref_audio, rec_audio, epi_length):
+    reward = 0
+    onset_strength_envelop_rec = librosa.onset.onset_strength(y=rec_audio, sr=44100)
+    onset_strength_envelop_ref = librosa.onset.onset_strength(y=ref_audio, sr=44100)
+    onset_strength_envelop_rec = np.array([0.0 if onset_strength < 5 else onset_strength for onset_strength in onset_strength_envelop_rec])
+    onset_strength_envelop_ref = np.array([0.0 if onset_strength < 5 else onset_strength for onset_strength in onset_strength_envelop_ref])
+
+    onset_hit_times_rec = librosa.onset.onset_detect(y=rec_audio, onset_envelope=onset_strength_envelop_rec, sr=44100, units='time', normalize=True)
+    onset_hit_times_ref = librosa.onset.onset_detect(y=ref_audio, onset_envelope=onset_strength_envelop_ref, sr=44100, units='time', normalize=True)
+    # stage 1: correct hitting times when it is wrong
+    if len(onset_hit_times_rec) != len(onset_hit_times_ref):
+        reward = -(len(onset_hit_times_rec) - len(onset_hit_times_ref)) ** 2
+    
+
+    # stage 2: constrain hitting timing to be close
+    else:
+        reward -= np.exp(euclidean(onset_hit_times_rec, onset_hit_times_ref))
+
+    return reward
