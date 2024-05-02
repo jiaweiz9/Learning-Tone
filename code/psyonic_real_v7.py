@@ -21,10 +21,10 @@ class PsyonicForReal():
     def __init__(self, args):
 
         # reward setting
-        self.w_amp_rew = 0.1
-        self.w_dtw_rew = 1e-3
-        self.w_timing_rew = 1
-        self.w_hit_rew = 1
+        self.w_amp_rew = 1
+        self.w_dtw_rew = 100
+        self.w_timing_rew = 100
+        self.w_hit_rew = 100
 
         # recorder setting
         self.ref_audio_path = args.ref_audio_path
@@ -186,12 +186,14 @@ class PsyonicForReal():
                 max_amp = np.max(abs(audio_data))
 
                 # if max_amp > hit_amp_th: # calculate episode rewards only when the sound is load enough
-                amp_reward_list, onset_hit_reward_list, dtw_reward = assign_rewards_to_episode(ref_audio, audio_data, episode_len)
+                amp_reward_list, onset_hit_reward_list, dtw_reward_list, timing_reward_list = assign_rewards_to_episode(ref_audio, audio_data, episode_len)
                 
                 reward_trajectory = amp_reward_list * self.w_amp_rew \
-                                    + onset_hit_reward_list * self.w_hit_rew
+                                    + onset_hit_reward_list * self.w_hit_rew \
+                                    + dtw_reward_list * self.w_dtw_rew \
+                                    + timing_reward_list * self.w_timing_rew
                 
-                reward_trajectory[-1] += self.w_dtw_rew * dtw_reward
+                # reward_trajectory[-1] += self.w_dtw_rew * dtw_reward
 
                 # print("Hit Timing Reward: ", hit_timing_reward)
 
@@ -203,16 +205,17 @@ class PsyonicForReal():
                     save_vis_reward_components(ref_audio, audio_data, episode_len, sr=44100, 
                                         rewards_dict={
                                             "Amplitude Reward": amp_reward_list * self.w_amp_rew,
-                                            "DTW Reward": dtw_reward * self.w_dtw_rew, 
+                                            "DTW Reward": dtw_reward_list * self.w_dtw_rew, 
                                             "Hit Reward": onset_hit_reward_list * self.w_hit_rew,
+                                            "Timing Reward": timing_reward_list * self.w_timing_rew,
                                             "Total Reward": reward_trajectory}, 
                                             img_path=f"result/vis_rewards/episode_{episode_num}.png")
 
                 episode_rewards.append(np.sum(reward_trajectory))
                 # epi_timing_rewards.append()
-                epi_dtw_rewards.append(dtw_reward * self.w_dtw_rew)
-                epi_timing_rewards.append(onset_hit_reward_list * self.w_timing_rew)
-                # epi_hit_times_rewards.append(hit_times_reward * self.w_hit_rew)
+                epi_dtw_rewards.append(np.sum(dtw_reward_list) * self.w_dtw_rew)
+                epi_timing_rewards.append(np.sum(timing_reward_list) * self.w_timing_rew)
+                epi_hit_times_rewards.append(np.sum(onset_hit_reward_list) * self.w_hit_rew)
                 epi_amp_rewards.append(np.sum(amp_reward_list) * self.w_amp_rew)
 
                 for obs, action, step_reward, val, log_prob in zip(obs_trajectory, act_trajectory, reward_trajectory, val_trajectory, log_prob_trajectory):
@@ -239,7 +242,7 @@ class PsyonicForReal():
                          "epi_amp_rewards": epi_amp_rewards, 
                          "epi_dtw_rewards": epi_dtw_rewards, 
                          "epi_timing_rewards": epi_timing_rewards,
-                        #  "epi_hit_times_rewards": epi_hit_times_rewards
+                         "epi_hit_times_rewards": epi_hit_times_rewards
                      }
                      })
 

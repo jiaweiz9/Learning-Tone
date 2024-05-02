@@ -2,6 +2,7 @@ import numpy as np
 import librosa
 import matplotlib.pyplot as plt
 import wavio
+# from utils.reward_functions import assign_rewards_to_episode
 from utils.reward_functions import assign_rewards_to_episode
 
 #TODO: Visualize the reference audio and the performed audio
@@ -137,14 +138,18 @@ def clip_audio(audio_data, sr, start_time, end_time):
 if __name__ == '__main__':
     # Load the reference audio and the performance audio
     ref_audio, sr = librosa.load('ref_audio/xylophone/ref_hit1_clip.wav', sr=None)
-    audio_data, sr = librosa.load('result/record_audios/episode_10.wav', sr=None)
+    audio_data, sr = librosa.load('result/record_audios/episode_450.wav', sr=None)
 
     # Visualize the reference audio and the performance audio
-    amp_reward_list, onset_hit_reward_list, dtw_reward = assign_rewards_to_episode(ref_audio, audio_data, epi_length=100)
+    audio_data[abs(audio_data) < 0.0155] = 1e-5
+    amp_reward_list, onset_hit_reward_list, dtw_reward_list, timing_reward_list = assign_rewards_to_episode(ref_audio, audio_data, epi_length=100)
+    print("dtw_reward:", dtw_reward_list[-1])
+    print("onset_hit_reward", onset_hit_reward_list[-1])
+    print("timing_reward", timing_reward_list[-1])
 
     save_vis_reward_components(ref_audio, audio_data, epi_length=100, sr=sr, rewards_dict={
-        "Amplitude Reward": amp_reward_list * 0.1,
-        "DTW Reward": dtw_reward * 0.01, 
-        "Hit Reward": onset_hit_reward_list * 1,
+        "Amplitude Reward": amp_reward_list * 10,
+        "DTW Reward": dtw_reward_list * 100,
+        "Hit Reward": onset_hit_reward_list * 100,
     })
     # wavio.write("ref_audio/xylophone/ref_hit1_clip_4.wav", ref_audio, sr, sampwidth=4)
