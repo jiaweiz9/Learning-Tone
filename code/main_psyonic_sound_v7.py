@@ -21,7 +21,7 @@ if __name__ == '__main__':
     parser.add_argument('--record_duration', type=int, default=4)
     parser.add_argument('--mini_batch_size', type=int, default=100)
     
-    parser.add_argument('--n_epi', type=int, default=1) # n_epi * 50 * record_duration = steps per sampling
+    parser.add_argument('--n_epi', type=int, default=10) # n_epi * 50 * record_duration = steps per sampling
     parser.add_argument('--k_epoch', type=int, default=30) # num of epoch for gradient descent
     parser.add_argument('--max_pos', type=float, default=1.0)
     parser.add_argument('--obs_dim', type=int, default=3)

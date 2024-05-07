@@ -68,8 +68,7 @@ class PsyonicForReal():
 
         # logger setting
         log_config = {"w_amp_rew": self.w_amp_rew, "w_dtw_rew": self.w_dtw_rew, "w_hit_rew": self.w_hit_rew,
-                      "n_epi": self.n_epi, "k_epoch": self.k_epoch, "mini_batch_size": self.mini_batch_size, "intial_pose": self.initial_pose, "velocity_free_coef": self.velocity_free_coef,
-                      "max_vel": self.max_vel, "obs_dim": self.obs_dim, "act_dim": self.act_dim, "beta_dist": self.beta_dist}
+                      "n_epi": self.n_epi, "k_epoch": self.k_epoch, "mini_batch_size": self.mini_batch_size,}
 
         self.logger = Logger(args.WANDB, log_config, resume = self.reload_iter > 0)
         
@@ -95,11 +94,6 @@ class PsyonicForReal():
         log_prob_trajectory = []
         info = {}
 
-        episode_rewards = []
-        epi_dtw_rewards = []
-        epi_timing_rewards = []
-        epi_amp_rewards = []
-        epi_hit_times_rewards = []
         ref_audio, ref_sr = librosa.load(self.ref_audio_path, sr=44100) # load reference audio
         Recoder = SoundRecorder(samplerate=samplerate, audio_device=None) # Bug fixed!! audio_devce=None is to use default connected device
 
@@ -138,20 +132,6 @@ class PsyonicForReal():
 
             # Get audio data
 
-            # ref_audio_info = ref_audio[882* (i % episode_len) : 882* ((i  % episode_len) + 1)]
-            # while True:
-            #     audio_data = Recoder.get_current_buffer() # get current sound data
-            #     if len(audio_data) > 0:
-            #         cur_time = time.time() if i == 0 else cur_time
-            #         break
-            # audio_data = Recoder.get_current_buffer()
-            # audio_data_step = audio_data[882* (i % episode_len) : 882* ((i  % episode_len) + 1)] # time window slicing 0.02sec
-            # audio_data_step = audio_data[-882 : ] # 0.02 sec
-            # curr_amp = np.mean(np.abs(audio_data_step))
-
-            # Set next observation
-            # curr_amp = np.asarray(curr_amp).reshape(1)
-            # print("curr_amp: ", curr_amp)
             next_obs = np.concatenate((np.array([i + 1]), prev_action, curr_action), axis=0)
 
             obs_trajectory.append(obs)
@@ -211,12 +191,14 @@ class PsyonicForReal():
                                             "Total Reward": reward_trajectory}, 
                                             img_path=f"result/vis_rewards/episode_{episode_num}.png")
 
-                episode_rewards.append(np.sum(reward_trajectory))
+                info["rewards"] = np.sum(reward_trajectory)
                 # epi_timing_rewards.append()
-                epi_dtw_rewards.append(np.sum(dtw_reward_list) * self.w_dtw_rew)
-                epi_timing_rewards.append(np.sum(timing_reward_list) * self.w_timing_rew)
-                epi_hit_times_rewards.append(np.sum(onset_hit_reward_list) * self.w_hit_rew)
-                epi_amp_rewards.append(np.sum(amp_reward_list) * self.w_amp_rew)
+                info["dtw_rewards"] = np.sum(dtw_reward_list) * self.w_dtw_rew
+                info["timing_rewards"] = (np.sum(timing_reward_list) * self.w_timing_rew)
+                info["hit_rewards"] = (np.sum(onset_hit_reward_list) * self.w_hit_rew)
+                info["amp_rewards"] = (np.sum(amp_reward_list) * self.w_amp_rew)
+
+                self.logger.log(info)
 
                 for obs, action, step_reward, val, log_prob in zip(obs_trajectory, act_trajectory, reward_trajectory, val_trajectory, log_prob_trajectory):
                     buffer.put(obs, action, step_reward, val, log_prob)
@@ -231,20 +213,16 @@ class PsyonicForReal():
                 val_trajectory = []
                 log_prob_trajectory = []
 
-                # if (iter * self.n_epi + (i + 1) // episode_len) % 10 == 0:
-                #     wavio.write(f"result/record_audios/episode_{iter * self.n_epi + (i + 1) // episode_len}.wav", 
-                #                 audio_data, rate=samplerate, sampwidth=4)
-
             
         
-        info.update({"episode_rewards": episode_rewards, 
-                     "reward_components": {
-                         "epi_amp_rewards": epi_amp_rewards, 
-                         "epi_dtw_rewards": epi_dtw_rewards, 
-                         "epi_timing_rewards": epi_timing_rewards,
-                         "epi_hit_times_rewards": epi_hit_times_rewards
-                     }
-                     })
+        # info.update({"episode_rewards": episode_rewards, 
+        #              "reward_components": {
+        #                  "epi_amp_rewards": epi_amp_rewards, 
+        #                  "epi_dtw_rewards": epi_dtw_rewards, 
+        #                  "epi_timing_rewards": epi_timing_rewards,
+        #                  "epi_hit_times_rewards": epi_hit_times_rewards
+        #              }
+        #              })
 
         return info
 
@@ -278,12 +256,6 @@ class PsyonicForReal():
         YorN = str(input("Do you want to roll out real-world? (y/n): "))
         if YorN.lower() != 'n':
 
-            # Load reference audio
-            # TODO: adjust amp_rate
-            # amp_rate = 20 # 20 is generalization value. Compare the amplitude of the reference sound and the generated sound and adjust the value.
-            # ref_audio, ref_sr = librosa.load(self.ref_audio_path) # load reference audio
-            # ref_audio = ref_audio / amp_rate 
-
             # initial set
             control_joint_pos = self.initial_pose # 6-fingertip joint angles
 
@@ -305,9 +277,9 @@ class PsyonicForReal():
                 if (i + 1) % 5 == 0:
                     self.max_vel = min(self.max_vel * self.velocity_free_coef, 5)
                     self.min_vel = max(self.min_vel * self.velocity_free_coef, -5)
-                rewards_info = self.sample_trajectory(i, PPO, PPOBuffer, max_steps_per_sampling, episode_len,
+                reward_info = self.sample_trajectory(i, PPO, PPOBuffer, max_steps_per_sampling, episode_len,
                                                                           min_vel=self.min_vel, max_vel=self.max_vel, samplerate=self.samplerate)
-                info = self.logger.episode_reward_stat(rewards_info)
+                # info = self.logger.episode_reward_stat(rewards_info)
 
                 # PPO training update
                 for _ in range(self.k_epoch):
@@ -327,10 +299,11 @@ class PsyonicForReal():
                         actor_loss_ls.append(actor_loss.numpy())
                         critic_loss_ls.append(critic_loss.numpy())
                         total_loss_ls.append(total_loss.numpy())
-                PPOBuffer.clear()      
-                info.update({"actor_loss": np.mean(actor_loss_ls), "critic_loss": np.mean(critic_loss_ls), "total_loss": np.mean(total_loss_ls)})
+                PPOBuffer.clear()
+
+                training_info= {"actor_loss": np.mean(actor_loss_ls), "critic_loss": np.mean(critic_loss_ls), "total_loss": np.mean(total_loss_ls)}
                 # Log trajectory rewards, actor loss, critic loss, total loss
-                self.logger.log(info)
+                self.logger.log(training_info)
 
                 if self.SAVE_WEIGHTS and (i + 1) % self.weight_iter_num == 0:
                     torch.save(PPO.state_dict(), f"result/ppo/weights/PPO_{i + 1}.pth")
