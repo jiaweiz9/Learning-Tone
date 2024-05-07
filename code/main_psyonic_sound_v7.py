@@ -29,7 +29,7 @@ if __name__ == '__main__':
     parser.add_argument('--beta_dist', action="store_true")
     parser.add_argument('--reload_iter', type=int, default=0)
     
-    parser.add_argument('--h_dims', nargs="+", type=int, default=[128, 128]) # change this term
+    parser.add_argument('--h_dims', nargs="+", type=int, default=[64, 64]) # change this term
     parser.add_argument('--gamma', type=float, default=0.99)
     parser.add_argument('--lmbda', type=float, default=0.95)
 

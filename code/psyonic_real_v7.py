@@ -67,8 +67,8 @@ class PsyonicForReal():
         self.beta_dist = args.beta_dist
 
         # logger setting
-        log_config = {"w_amp_rew": self.w_amp_rew, "w_dtw_rew": self.w_dtw_rew, "w_hit_rew": self.w_hit_rew,
-                      "n_epi": self.n_epi, "k_epoch": self.k_epoch, "mini_batch_size": self.mini_batch_size,}
+        log_config = {"w_amp_rew": self.w_amp_rew, "w_hit_rew": self.w_hit_rew,
+                      "n_epi": self.n_epi, "mini_batch_size": self.mini_batch_size,}
 
         self.logger = Logger(args.WANDB, log_config, resume = self.reload_iter > 0)
         
@@ -96,18 +96,18 @@ class PsyonicForReal():
 
         ref_audio, ref_sr = librosa.load(self.ref_audio_path, sr=44100) # load reference audio
         Recoder = SoundRecorder(samplerate=samplerate, audio_device=None) # Bug fixed!! audio_devce=None is to use default connected device
+        rollouts_rew_total = 0
+        rollouts_rew_amp = 0
+        rollouts_rew_hit = 0
 
         for i in range(max_step):
 
             if i % episode_len == 0:
                 prev_action = self.initial_pose[-1:] # pre position
                 curr_action = self.initial_pose[-1:] # current position
-                # shape (timestep, pre_position, curr_position, cur_amp) = (14,)
                 obs = np.concatenate((np.array([i]), prev_action, curr_action), axis=0)
-
                 # Start recording
                 Recoder.start_recording()
-                start_time = time.time()
 
             else:
                 prev_action = curr_action
@@ -121,7 +121,6 @@ class PsyonicForReal():
             else:
                 curr_action = np.clip(action, self.pose_lower, self.pose_upper)
 
-            # print("action_before_clip: ", curr_action)
             # Clip action based on velocity
             curr_action, vel_clip = vel_clip_action(prev_action, curr_action, min_vel=min_vel, max_vel=max_vel, ros_rate=self.ros_rate) # radian
             
@@ -165,17 +164,11 @@ class PsyonicForReal():
 
                 max_amp = np.max(abs(audio_data))
 
-                # if max_amp > hit_amp_th: # calculate episode rewards only when the sound is load enough
-                amp_reward_list, onset_hit_reward_list, dtw_reward_list, timing_reward_list = assign_rewards_to_episode(ref_audio, audio_data, episode_len)
+                # if max_amp > hit_amp_th: # calculate episode rewards only when the sound is loud enough
+                amp_reward_list, hit_reward_list = assign_rewards_to_episode(ref_audio, audio_data, episode_len)
                 
                 reward_trajectory = amp_reward_list * self.w_amp_rew \
-                                    + onset_hit_reward_list * self.w_hit_rew \
-                                    + dtw_reward_list * self.w_dtw_rew \
-                                    + timing_reward_list * self.w_timing_rew
-                
-                # reward_trajectory[-1] += self.w_dtw_rew * dtw_reward
-
-                # print("Hit Timing Reward: ", hit_timing_reward)
+                                    + hit_reward_list * self.w_hit_rew 
 
                 assert len(reward_trajectory) == episode_len, len(reward_trajectory)
                 assert len(obs_trajectory) == episode_len, len(obs_trajectory)
@@ -185,20 +178,20 @@ class PsyonicForReal():
                     save_vis_reward_components(ref_audio, audio_data, episode_len, sr=44100, 
                                         rewards_dict={
                                             "Amplitude Reward": amp_reward_list * self.w_amp_rew,
-                                            "DTW Reward": dtw_reward_list * self.w_dtw_rew, 
-                                            "Hit Reward": onset_hit_reward_list * self.w_hit_rew,
-                                            "Timing Reward": timing_reward_list * self.w_timing_rew,
+                                            "Hit Reward": hit_reward_list * self.w_hit_rew,
                                             "Total Reward": reward_trajectory}, 
                                             img_path=f"result/vis_rewards/episode_{episode_num}.png")
 
                 info["rewards"] = np.sum(reward_trajectory)
                 # epi_timing_rewards.append()
-                info["dtw_rewards"] = np.sum(dtw_reward_list) * self.w_dtw_rew
-                info["timing_rewards"] = (np.sum(timing_reward_list) * self.w_timing_rew)
-                info["hit_rewards"] = (np.sum(onset_hit_reward_list) * self.w_hit_rew)
+                info["hit_rewards"] = (np.sum(hit_reward_list) * self.w_hit_rew)
                 info["amp_rewards"] = (np.sum(amp_reward_list) * self.w_amp_rew)
 
-                self.logger.log(info)
+                self.logger.log(info, True)
+                rollouts_rew_total += np.sum(reward_trajectory)
+                rollouts_rew_amp += np.sum(amp_reward_list) * self.w_amp_rew
+                rollouts_rew_hit += np.sum(hit_reward_list) * self.w_hit_rew
+
 
                 for obs, action, step_reward, val, log_prob in zip(obs_trajectory, act_trajectory, reward_trajectory, val_trajectory, log_prob_trajectory):
                     buffer.put(obs, action, step_reward, val, log_prob)
@@ -213,18 +206,7 @@ class PsyonicForReal():
                 val_trajectory = []
                 log_prob_trajectory = []
 
-            
-        
-        # info.update({"episode_rewards": episode_rewards, 
-        #              "reward_components": {
-        #                  "epi_amp_rewards": epi_amp_rewards, 
-        #                  "epi_dtw_rewards": epi_dtw_rewards, 
-        #                  "epi_timing_rewards": epi_timing_rewards,
-        #                  "epi_hit_times_rewards": epi_hit_times_rewards
-        #              }
-        #              })
-
-        return info
+        return rollouts_rew_total, rollouts_rew_amp, rollouts_rew_hit
 
 
     def update(self):
@@ -271,16 +253,14 @@ class PsyonicForReal():
                 actor_loss_ls = []
                 critic_loss_ls = []
                 total_loss_ls = []
+                training_info = {}
 
                 print("=================Iteration: ", i, "=================")
                 # Sample n trajectories, total steps = n * episode_len
                 if (i + 1) % 5 == 0:
                     self.max_vel = min(self.max_vel * self.velocity_free_coef, 5)
                     self.min_vel = max(self.min_vel * self.velocity_free_coef, -5)
-                reward_info = self.sample_trajectory(i, PPO, PPOBuffer, max_steps_per_sampling, episode_len,
-                                                                          min_vel=self.min_vel, max_vel=self.max_vel, samplerate=self.samplerate)
-                # info = self.logger.episode_reward_stat(rewards_info)
-
+                rollouts_rew_total, rollouts_rew_amp, rollouts_rew_hit = self.sample_trajectory(i, PPO, PPOBuffer, max_steps_per_sampling, episode_len, min_vel=self.min_vel, max_vel=self.max_vel, samplerate=self.samplerate)
                 # PPO training update
                 for _ in range(self.k_epoch):
                     mini_batch_data = PPOBuffer.get_mini_batch(mini_batch_size=self.mini_batch_size) # split data into different subsets
@@ -303,21 +283,12 @@ class PsyonicForReal():
 
                 training_info= {"actor_loss": np.mean(actor_loss_ls), "critic_loss": np.mean(critic_loss_ls), "total_loss": np.mean(total_loss_ls)}
                 # Log trajectory rewards, actor loss, critic loss, total loss
+                self.logger.log(training_info, True)
+
+
+                training_info.update({"rollouts_rew_total": rollouts_rew_total / self.n_epi , "rollouts_rew_amp": rollouts_rew_amp / self.n_epi, "rollouts_rew_hit": rollouts_rew_hit / self.n_epi})
                 self.logger.log(training_info)
 
                 if self.SAVE_WEIGHTS and (i + 1) % self.weight_iter_num == 0:
                     torch.save(PPO.state_dict(), f"result/ppo/weights/PPO_{i + 1}.pth")
 
-
-if __name__ == "__main__":
-    sr = SoundRecorder()
-    sr.start_recording()
-    time.sleep(0.02)
-    start_time = time.time()
-    for i in range(100):
-        time.sleep(0.02)
-        cur_time = time.time()
-        record_list = sr.get_current_buffer()
-        print("time_elapse:", cur_time - start_time)
-        print("length of list", len(record_list))
-        print("\n")
