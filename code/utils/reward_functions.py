@@ -88,7 +88,7 @@ def onset_hit_reward(ref_audio, rec_audio, epi_length, effect_window=10, sr=4410
     print("onset_hit_times_rec: ", onset_hit_times_rec)
 
     hit_reward_list = np.zeros(epi_length)
-    hit_reward_list[-1] = - min((len(onset_hit_times_rec) - len(onset_hit_times_ref))**2, 10)
+    hit_reward_list[-1] = - min((len(onset_hit_times_rec) - len(onset_hit_times_ref))**2, 25)
 
     return hit_reward_list
 

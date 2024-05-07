@@ -204,6 +204,8 @@ class PsyonicForReal():
                 val_trajectory = []
                 log_prob_trajectory = []
 
+                self.QPosPublisher.publish_once(self.initial_pose)
+
         return rollouts_rew_total, rollouts_rew_amp, rollouts_rew_hit
 
 
