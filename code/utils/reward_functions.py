@@ -4,10 +4,10 @@ from fastdtw import fastdtw
 from scipy.spatial.distance import euclidean
 
 def amplitude_reward(audio_data_step_window, ref_data_step_window, amp_scale=1e2):
-    mean_amp = np.mean(abs(audio_data_step_window))* amp_scale
+    mean_amp = np.mean(abs(audio_data_step_window))
     if np.isnan(mean_amp):
                 mean_amp = 0
-    mean_ref_amp = np.mean(abs(ref_data_step_window))* amp_scale
+    mean_ref_amp = np.mean(abs(ref_data_step_window))
     gap_amp = np.abs(mean_amp - mean_ref_amp)
     amp_reward = np.exp(-gap_amp)
     return amp_reward, mean_amp

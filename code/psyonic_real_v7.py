@@ -21,10 +21,10 @@ class PsyonicForReal():
     def __init__(self, args):
 
         # reward setting
-        self.w_amp_rew = 1
+        self.w_amp_rew = 0
         self.w_dtw_rew = 100
         self.w_timing_rew = 100
-        self.w_hit_rew = 100
+        self.w_hit_rew = 2
 
         # recorder setting
         self.ref_audio_path = args.ref_audio_path
@@ -44,10 +44,8 @@ class PsyonicForReal():
 
         # action setting
         self.initial_pose = np.array([105, 105, 105, 110, 70, -0])
-        # self.pose_upper = np.array([105, 105, 105, 110, 70, -10])
-        # self.pose_lower = np.array([95, 95, 95, 100, 65, -35])
         self.pose_upper = np.array([-0])
-        self.pose_lower = np.array([-35])
+        self.pose_lower = np.array([-30])
         print("initial pose:", self.initial_pose)
         self.velocity_free_coef = args.velocity_free_coef
         self.min_vel = args.min_vel
@@ -179,7 +177,7 @@ class PsyonicForReal():
                                         rewards_dict={
                                             "Amplitude Reward": amp_reward_list * self.w_amp_rew,
                                             "Hit Reward": hit_reward_list * self.w_hit_rew,
-                                            "Total Reward": reward_trajectory}, 
+                                            }, 
                                             img_path=f"result/vis_rewards/episode_{episode_num}.png")
 
                 info["rewards"] = np.sum(reward_trajectory)

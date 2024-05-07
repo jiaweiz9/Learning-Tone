@@ -107,7 +107,7 @@ def save_vis_reward_components(ref_audio, audio_data, epi_length, sr, rewards_di
     axs[1].set_title('Performed Audio')
     axs[1].set_xlabel('Time (s)')
 
-    available_colors = ['green', 'purple', 'red', 'black', 'pink', 'cyan', 'magenta', 'yellow', ]
+    available_colors = ['red', 'purple', 'black', 'pink', 'cyan', 'magenta', 'yellow', ]
     for i, (component_type, reward_list) in enumerate(rewards_dict.items()):
         if not isinstance(reward_list, np.ndarray):
             point_x = epi_length - 1

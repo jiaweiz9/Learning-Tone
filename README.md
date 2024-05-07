@@ -45,7 +45,7 @@ Make sure to have these components set up and connected appropriately before run
 
 ### Running the tests
 ```bash
-python main_psyonic_sound_v7.py --record_duration 2 --samplerate 44100 --beta_dist --max_iter 3000 --WANDB
+python main_psyonic_sound_v7.py --record_duration 2 --samplerate 44100 --beta_dist --max_iter 3000 --n_epi 3 --WANDB
 ```
 
 

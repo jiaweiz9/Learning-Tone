@@ -10,7 +10,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--seed", default=10, type=int)
+    parser.add_argument("--seed", default=1, type=int)
     parser.add_argument('--min_vel', type=float, default=-5.0)
     parser.add_argument('--max_vel', type=float, default=5.0)
     parser.add_argument('--velocity_free_coef', type=float, default=1.1)
