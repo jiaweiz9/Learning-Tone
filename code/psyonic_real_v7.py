@@ -127,7 +127,7 @@ class PsyonicForReal():
             publish_pose = np.concatenate((self.initial_pose[:-1], curr_action), axis=0)
             self.QPosPublisher.publish_once(publish_pose) # Publish action 0.02 sec
 
-            # Get audio data
+            # Get audio data ?
 
             next_obs = np.concatenate((np.array([i + 1]), prev_action, curr_action), axis=0)
 
@@ -205,6 +205,8 @@ class PsyonicForReal():
                 log_prob_trajectory = []
 
                 self.QPosPublisher.publish_once(self.initial_pose)
+                time.sleep(0.2)
+                print("pose reset!")
 
         return rollouts_rew_total, rollouts_rew_amp, rollouts_rew_hit
 
@@ -291,4 +293,3 @@ class PsyonicForReal():
 
                 if self.SAVE_WEIGHTS and (i + 1) % self.weight_iter_num == 0:
                     torch.save(PPO.state_dict(), f"result/ppo/weights/PPO_{i + 1}.pth")
-

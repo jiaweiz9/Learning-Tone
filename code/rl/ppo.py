@@ -267,6 +267,15 @@ class PPOClass(nn.Module):
         action = dist.sample()
         log_prob = torch.sum(dist.log_prob(action), dim=-1)
         return action[0].detach().numpy(), torch.squeeze(log_prob).detach().numpy(), torch.squeeze(val).detach().numpy()
+    
+    def get_best_action(self, obs):
+        obs_torch = torch.unsqueeze(torch.FloatTensor(obs), 0)
+        self.actor.eval()
+        self.critic.eval()
+        dist, val = self.forward(obs_torch)
+        best_action = dist.mean()
+        return best_action.detach().numpy()
+
         
     def get_val(self,
                   obs):
