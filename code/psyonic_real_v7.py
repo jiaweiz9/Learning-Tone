@@ -68,7 +68,7 @@ class PsyonicForReal():
         log_config = {"w_amp_rew": self.w_amp_rew, "w_hit_rew": self.w_hit_rew,
                       "n_epi": self.n_epi, "mini_batch_size": self.mini_batch_size,}
 
-        self.logger = Logger(args.WANDB, log_config, resume = self.reload_iter > 0)
+        self.logger = Logger(args.WANDB, log_config, resume = False)
         
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.set_ros()
@@ -108,11 +108,11 @@ class PsyonicForReal():
                 Recoder.start_recording()
 
             else:
-                prev_action = curr_action
                 obs = next_obs
             
             # Get action from actor
             action, log_prob, val = PPO_agent.get_action(obs)
+            prev_action = curr_action
             
             if self.beta_dist:
                 curr_action = beta_dist_to_action_space(action, self.pose_lower, self.pose_upper)
@@ -205,7 +205,7 @@ class PsyonicForReal():
                 log_prob_trajectory = []
 
                 self.QPosPublisher.publish_once(self.initial_pose)
-                time.sleep(0.2)
+                time.sleep(0.4)
                 print("pose reset!")
 
         return rollouts_rew_total, rollouts_rew_amp, rollouts_rew_hit
@@ -285,7 +285,7 @@ class PsyonicForReal():
 
                 training_info= {"actor_loss": np.mean(actor_loss_ls), "critic_loss": np.mean(critic_loss_ls), "total_loss": np.mean(total_loss_ls)}
                 # Log trajectory rewards, actor loss, critic loss, total loss
-                self.logger.log(training_info, True)
+                # self.logger.log(training_info, True)
 
 
                 training_info.update({"rollouts_rew_total": rollouts_rew_total / self.n_epi , "rollouts_rew_amp": rollouts_rew_amp / self.n_epi, "rollouts_rew_hit": rollouts_rew_hit / self.n_epi})

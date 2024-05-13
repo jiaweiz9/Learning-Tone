@@ -19,7 +19,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_iter', type=int, default=300)
     parser.add_argument('--ros_rate', type=int, default=50)
     parser.add_argument('--record_duration', type=int, default=4)
-    parser.add_argument('--mini_batch_size', type=int, default=50)
+    parser.add_argument('--mini_batch_size', type=int, default=20)
     
     parser.add_argument('--n_epi', type=int, default=10) # n_epi * 50 * record_duration = steps per sampling
     parser.add_argument('--k_epoch', type=int, default=30) # num of epoch for gradient descent
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_grad', type=float, default=0.5)
     parser.add_argument('--samplerate', type=int, default=44100) # Audio sample rate
     parser.add_argument('--WANDB', action="store_true")
-    parser.add_argument('--weight_iter_num', type=int, default=5)
+    parser.add_argument('--weight_iter_num', type=int, default=10)
     parser.add_argument('--SAVE_WEIGHTS', action="store_true")
     args = parser.parse_args()
     main(args)

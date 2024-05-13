@@ -273,7 +273,7 @@ class PPOClass(nn.Module):
         self.actor.eval()
         self.critic.eval()
         dist, val = self.forward(obs_torch)
-        best_action = dist.mean()
+        best_action = dist.mean
         return best_action.detach().numpy()
 
         

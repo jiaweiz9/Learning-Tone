@@ -91,7 +91,7 @@ def onset_hit_reward(ref_audio, rec_audio, epi_length, effect_window=10, sr=4410
     hit_reward_list[-1] = - min(abs(len(onset_hit_times_rec) - len(onset_hit_times_ref)), 10)
 
     if len(onset_hit_times_rec) == len(onset_hit_times_ref):
-        hit_reward_list[-1] += np.exp(- 5 * euclidean(onset_hit_times_ref[0] / 44100.0, onset_hit_times_ref[0] / 44100.0)) * 10
+        hit_reward_list[-1] += np.exp(- 5 * euclidean(onset_hit_times_ref / 44100.0, onset_hit_times_rec / 44100.0)) * 10
 
     return hit_reward_list
 
