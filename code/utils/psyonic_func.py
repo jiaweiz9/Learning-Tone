@@ -9,18 +9,23 @@ def get_velocity(prev_action, curr_action, ros_rate=50):
     return vel
 
 # Clip the action based on the velocity limit
-def vel_clip_action(prev_action, action, min_vel=-1.0, max_vel=1.0, ros_rate=50):
+def vel_clip_action(prev_action, action, min_vel=-5.0, max_vel=5.0, ros_rate=50):
     
-    vel = get_velocity(prev_action * (3.14/180), action * (3.14/180))
+    vel = get_velocity(prev_action, action)
     vel_clip = np.clip(vel, min_vel, max_vel)
-    # print("vel_clip: ", vel_clip)
     assert vel_clip.all() >= min_vel
     assert vel_clip.all() <= max_vel
-    delta_action = vel_clip * (180 / 3.14) * (1 / (ros_rate))
+    delta_action = vel_clip * (1 / (ros_rate))
     curr_action = prev_action + delta_action
     # print("action_after_clip_in: ", curr_action)
     return curr_action, vel_clip
 
+def clip_max_move(prev_action, curr_action, max_move):
+    if curr_action - prev_action > max_move:
+        curr_action = prev_action + max_move
+    elif prev_action - curr_action > max_move:
+        curr_action = prev_action - max_move
+    return curr_action
 
 # Calculate the acceleration based on current velocity and previous velocity
 def get_acceleration(prev_vel, curr_vel, ros_rate=50):
@@ -28,15 +33,22 @@ def get_acceleration(prev_vel, curr_vel, ros_rate=50):
     return acc
 
 
-# TODO: Map policy output numbers to the range(init_pose ~ max_pose), instead of clipping
 def beta_dist_to_action_space(beta_out, action_min, action_max):
     action = beta_out * (action_max - action_min) + action_min
     return action
 
 def action_space_to_beta_dist(action, action_min, action_max):
-    beta_out = (action - action_min) / (action_max - action_min)
-    return beta_out
+    beta_x = (action - action_min) / (action_max - action_min)
+    return beta_x
 
-# TODO: Clip the action based on acceleration
+def action_space_to_norm(action, action_min=-50, action_max=-10):
+    norm_x = 2 * (action - action_min) / (action_max - action_min) - 1
+    return norm_x
+
+def norm_to_action_space(norm_x, action_min=-50, action_max=-10):
+    action = (norm_x + 1) * (action_max - action_min) / 2 + action_min
+    return action
+
+
 def acc_clip_action():
     pass

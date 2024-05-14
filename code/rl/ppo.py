@@ -253,6 +253,7 @@ class PPOClass(nn.Module):
             dist = Beta(alpha, beta)
         else:
             mu = self.actor(obs)
+            self.mu = mu
             # mu = torch.clamp(mu, -0.16, 0.16)
             dist = Normal(mu, torch.exp(self.log_std))
         val = self.critic(obs)

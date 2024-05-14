@@ -11,7 +11,8 @@ import librosa
 import wavio
 from utils.sound_recorder import SoundRecorder
 from utils.reward_functions import amplitude_reward, onset_rewards, assign_rewards_to_episode
-from utils.psyonic_func import get_velocity, vel_clip_action, get_acceleration, beta_dist_to_action_space, action_space_to_beta_dist
+from utils.psyonic_func import get_velocity, vel_clip_action, get_acceleration, clip_max_move, \
+      beta_dist_to_action_space, action_space_to_beta_dist, action_space_to_norm, norm_to_action_space 
 from utils.logger import Logger
 from utils.saveload_model import save_model, load_model
 from utils.eval_result import save_vis_reward_components
@@ -24,7 +25,7 @@ class PsyonicForReal():
         self.w_amp_rew = 0
         self.w_dtw_rew = 100
         self.w_timing_rew = 100
-        self.w_hit_rew = 2
+        self.w_hit_rew = 10
 
         # recorder setting
         self.ref_audio_path = args.ref_audio_path
@@ -43,9 +44,9 @@ class PsyonicForReal():
         self.reload_iter = args.reload_iter
 
         # action setting
-        self.initial_pose = np.array([105, 105, 105, 110, 70, -0])
-        self.pose_upper = np.array([-0])
-        self.pose_lower = np.array([-30])
+        self.initial_pose = np.array([70, 70, 110, 115, 50, -10])
+        self.pose_upper = np.array([-10])
+        self.pose_lower = np.array([-50])
         print("initial pose:", self.initial_pose)
         self.velocity_free_coef = args.velocity_free_coef
         self.min_vel = args.min_vel
@@ -66,10 +67,11 @@ class PsyonicForReal():
 
         # logger setting
         log_config = {"w_amp_rew": self.w_amp_rew, "w_hit_rew": self.w_hit_rew,
-                      "n_epi": self.n_epi, "mini_batch_size": self.mini_batch_size,}
+                      "n_epi": self.n_epi, "mini_batch_size": self.mini_batch_size, "beta_dist": self.beta_dist}
 
         self.logger = Logger(args.WANDB, log_config, resume = False)
-        
+        self.Recoder = SoundRecorder(samplerate=self.samplerate, audio_device=None) # Bug fixed!! audio_devce=None is to use default connected device
+
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.set_ros()
 
@@ -82,6 +84,10 @@ class PsyonicForReal():
     def set_ros(self):
         rospy.init_node('psyonic_for_real', anonymous=True)
         self.QPosPublisher = QPosPublisher()
+
+    def reset(self):
+        reset_pose = np.random.random() * (self.pose_upper - self.pose_lower) + self.pose_lower
+        return reset_pose
     
     
     def sample_trajectory(self, iter, PPO_agent, buffer, max_step, episode_len, min_vel, max_vel, samplerate):
@@ -93,26 +99,31 @@ class PsyonicForReal():
         info = {}
 
         ref_audio, ref_sr = librosa.load(self.ref_audio_path, sr=44100) # load reference audio
-        Recoder = SoundRecorder(samplerate=samplerate, audio_device=None) # Bug fixed!! audio_devce=None is to use default connected device
         rollouts_rew_total = 0
         rollouts_rew_amp = 0
         rollouts_rew_hit = 0
+        prev_action = self.initial_pose[-1:] # pre position
+        curr_action = self.initial_pose[-1:] # current position
 
         for i in range(max_step):
 
             if i % episode_len == 0:
-                prev_action = self.initial_pose[-1:] # pre position
-                curr_action = self.initial_pose[-1:] # current position
+                prev_action = curr_action
                 obs = np.concatenate((np.array([i]), prev_action, curr_action), axis=0)
                 # Start recording
-                Recoder.start_recording()
+                self.Recoder.start_recording()
 
             else:
                 obs = next_obs
             
             # Get action from actor
-            action, log_prob, val = PPO_agent.get_action(obs)
             prev_action = curr_action
+            ori_action, log_prob, val = PPO_agent.get_action(obs)
+            # print("output of policy:", ori_action)
+            clipped_action = np.clip(ori_action, -1, 1)
+            # print("clipped action:", clipped_action)
+            action = norm_to_action_space(clipped_action)
+            # print("rectified action:", action)
             
             if self.beta_dist:
                 curr_action = beta_dist_to_action_space(action, self.pose_lower, self.pose_upper)
@@ -120,27 +131,30 @@ class PsyonicForReal():
                 curr_action = np.clip(action, self.pose_lower, self.pose_upper)
 
             # Clip action based on velocity
-            curr_action, vel_clip = vel_clip_action(prev_action, curr_action, min_vel=min_vel, max_vel=max_vel, ros_rate=self.ros_rate) # radian
+            # curr_action, vel_clip = vel_clip_action(prev_action, curr_action, min_vel=min_vel, max_vel=max_vel, ros_rate=self.ros_rate) # radian
+            # print("cur_action:", curr_action, "prev_action:", prev_action, "max_vel:", self.max_vel)
+            curr_action = clip_max_move(prev_action, curr_action, max_move=self.max_vel)
+            # print("vel clipped action:", curr_action)
             
-            # print("action_after_clip: ", curr_action)
-
             publish_pose = np.concatenate((self.initial_pose[:-1], curr_action), axis=0)
+            # print("publish pose", publish_pose)
             self.QPosPublisher.publish_once(publish_pose) # Publish action 0.02 sec
-
-            # Get audio data ?
 
             next_obs = np.concatenate((np.array([i + 1]), prev_action, curr_action), axis=0)
 
             obs_trajectory.append(obs)
-            act_trajectory.append(action_space_to_beta_dist(curr_action, self.pose_lower, self.pose_upper))
+            if self.beta_dist:
+                act_trajectory.append(action_space_to_beta_dist(curr_action, self.pose_lower, self.pose_upper))
+            else:
+                act_trajectory.append(ori_action)
             val_trajectory.append(val)
             log_prob_trajectory.append(log_prob)
             
             
             # Episode done
             if (i + 1) % episode_len == 0:
-                Recoder.stop_recording()
-                audio_data = Recoder.get_current_buffer()
+                self.Recoder.stop_recording()
+                audio_data = self.Recoder.get_current_buffer()
 
                 # print("start waiting time", cur_time - start_time)
                 audio_data = audio_data.squeeze()[8820:] # remove the waiting time
@@ -150,7 +164,7 @@ class PsyonicForReal():
                 audio_data[abs(audio_data) < hit_amp_th] = 1e-5
                 # ref_audio[abs(ref_audio) < hit_amp_th] = 1e-5
 
-                Recoder.clear_buffer()
+                self.Recoder.clear_buffer()
                 print("audio_data shape: ", audio_data.shape)
                 print("ref_audio shape: ", ref_audio.shape)
 
@@ -204,9 +218,10 @@ class PsyonicForReal():
                 val_trajectory = []
                 log_prob_trajectory = []
 
-                self.QPosPublisher.publish_once(self.initial_pose)
-                time.sleep(0.4)
-                print("pose reset!")
+                reset_pose = self.reset()
+                self.QPosPublisher.publish_once(np.concatenate((self.initial_pose[:-1], reset_pose), axis=0))
+                time.sleep(0.5)
+                print("pose reset to ", reset_pose)
 
         return rollouts_rew_total, rollouts_rew_amp, rollouts_rew_hit
 
@@ -259,9 +274,10 @@ class PsyonicForReal():
 
                 print("=================Iteration: ", i, "=================")
                 # Sample n trajectories, total steps = n * episode_len
-                if (i + 1) % 5 == 0:
-                    self.max_vel = min(self.max_vel * self.velocity_free_coef, 5)
-                    self.min_vel = max(self.min_vel * self.velocity_free_coef, -5)
+                # if (i + 1) % 5 == 0:
+                #     self.max_vel = min(self.max_vel * self.velocity_free_coef, 5)
+                #     self.min_vel = max(self.min_vel * self.velocity_free_coef, -5)
+                print(self.max_vel)
                 rollouts_rew_total, rollouts_rew_amp, rollouts_rew_hit = self.sample_trajectory(i, PPO, PPOBuffer, max_steps_per_sampling, episode_len, min_vel=self.min_vel, max_vel=self.max_vel, samplerate=self.samplerate)
                 # PPO training update
                 for _ in range(self.k_epoch):
@@ -284,12 +300,35 @@ class PsyonicForReal():
                 PPOBuffer.clear()
 
                 training_info= {"actor_loss": np.mean(actor_loss_ls), "critic_loss": np.mean(critic_loss_ls), "total_loss": np.mean(total_loss_ls)}
-                # Log trajectory rewards, actor loss, critic loss, total loss
-                # self.logger.log(training_info, True)
 
 
                 training_info.update({"rollouts_rew_total": rollouts_rew_total / self.n_epi , "rollouts_rew_amp": rollouts_rew_amp / self.n_epi, "rollouts_rew_hit": rollouts_rew_hit / self.n_epi})
                 self.logger.log(training_info)
+                print(PPO.mu)
+                print(PPO.log_std)
 
                 if self.SAVE_WEIGHTS and (i + 1) % self.weight_iter_num == 0:
                     torch.save(PPO.state_dict(), f"result/ppo/weights/PPO_{i + 1}.pth")
+                    self.eval_policy(PPO)
+
+
+    def eval_policy(self, PPO):
+        self.QPosPublisher(self.initial_pose)
+        prev_action = curr_action = self.initial_pose[-1]
+        episode_length = self.record_duration * self.ros_rate
+        print("evaluating results..")
+
+        for i in range(episode_length):
+            obs = np.concatenate((np.array([i]), prev_action, curr_action), axis=0)
+            action = PPO.get_best_action(obs)
+            action = norm_to_action_space(action)
+
+            prev_action = curr_action
+            if self.beta_dist:
+                curr_action = beta_dist_to_action_space(action, self.pose_lower, self.pose_upper)
+            else:
+                curr_action = np.clip(action, self.pose_lower, self.pose_upper)
+
+            publish_pose = np.concatenate((self.initial_pose[:-1], curr_action), axis=0)
+            print("step:", publish_pose)
+            self.QPosPublisher.publish_once(publish_pose)
