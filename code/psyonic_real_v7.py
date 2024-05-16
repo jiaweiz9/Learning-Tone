@@ -6,13 +6,15 @@ import torch.nn.functional as F
 from utils.psyonic_func import *
 from rl.ppo import *
 from ros_func.publisher import QPosPublisher
+from ros_func.subscriber import HandValueSubscriber
 import numpy as np
 import librosa
 import wavio
 from utils.sound_recorder import SoundRecorder
 from utils.reward_functions import amplitude_reward, onset_rewards, assign_rewards_to_episode
 from utils.psyonic_func import get_velocity, vel_clip_action, get_acceleration, clip_max_move, \
-      beta_dist_to_action_space, action_space_to_beta_dist, action_space_to_norm, norm_to_action_space 
+      beta_dist_to_action_space, action_space_to_beta_dist, action_space_to_norm, norm_to_action_space, \
+      normilize_obs
 from utils.logger import Logger
 from utils.saveload_model import save_model, load_model
 from utils.eval_result import save_vis_reward_components
@@ -24,8 +26,8 @@ class PsyonicForReal():
         # reward setting
         self.w_amp_rew = 0
         self.w_dtw_rew = 100
-        self.w_timing_rew = 100
-        self.w_hit_rew = 10
+        self.w_timing_rew = 10 
+        self.w_hit_rew = 20
 
         # recorder setting
         self.ref_audio_path = args.ref_audio_path
@@ -102,6 +104,7 @@ class PsyonicForReal():
         rollouts_rew_total = 0
         rollouts_rew_amp = 0
         rollouts_rew_hit = 0
+        rollouts_rew_timing = 0
         prev_action = self.initial_pose[-1:] # pre position
         curr_action = self.initial_pose[-1:] # current position
 
@@ -109,21 +112,23 @@ class PsyonicForReal():
 
             if i % episode_len == 0:
                 prev_action = curr_action
-                obs = np.concatenate((np.array([i]), prev_action, curr_action), axis=0)
+                obs = np.concatenate((np.array([i], dtype=np.float64), prev_action, curr_action), axis=0)
+                obs = normilize_obs(obs, total_timestep=episode_len, min_pos=self.pose_lower[-1], max_pos=self.pose_upper[-1])
                 # Start recording
                 self.Recoder.start_recording()
 
             else:
                 obs = next_obs
-            
             # Get action from actor
             prev_action = curr_action
             ori_action, log_prob, val = PPO_agent.get_action(obs)
             # print("output of policy:", ori_action)
+            # print("prob: ", np.exp(log_prob))
             clipped_action = np.clip(ori_action, -1, 1)
             # print("clipped action:", clipped_action)
             action = norm_to_action_space(clipped_action)
             # print("rectified action:", action)
+            # print("prev action: ", prev_action)
             
             if self.beta_dist:
                 curr_action = beta_dist_to_action_space(action, self.pose_lower, self.pose_upper)
@@ -131,16 +136,18 @@ class PsyonicForReal():
                 curr_action = np.clip(action, self.pose_lower, self.pose_upper)
 
             # Clip action based on velocity
-            # curr_action, vel_clip = vel_clip_action(prev_action, curr_action, min_vel=min_vel, max_vel=max_vel, ros_rate=self.ros_rate) # radian
-            # print("cur_action:", curr_action, "prev_action:", prev_action, "max_vel:", self.max_vel)
+            curr_action = clip_max_move(prev_action, curr_action, max_move=self.max_vel)
             curr_action = clip_max_move(prev_action, curr_action, max_move=self.max_vel)
             # print("vel clipped action:", curr_action)
             
+            curr_action = clip_max_move(prev_action, curr_action, max_move=self.max_vel)            
+            # print("vel clipped action:", curr_action)
+            
             publish_pose = np.concatenate((self.initial_pose[:-1], curr_action), axis=0)
-            # print("publish pose", publish_pose)
             self.QPosPublisher.publish_once(publish_pose) # Publish action 0.02 sec
 
             next_obs = np.concatenate((np.array([i + 1]), prev_action, curr_action), axis=0)
+            next_obs = normilize_obs(next_obs, total_timestep=episode_len, min_pos=self.pose_lower[-1], max_pos=self.pose_upper[-1])
 
             obs_trajectory.append(obs)
             if self.beta_dist:
@@ -177,10 +184,11 @@ class PsyonicForReal():
                 max_amp = np.max(abs(audio_data))
 
                 # if max_amp > hit_amp_th: # calculate episode rewards only when the sound is loud enough
-                amp_reward_list, hit_reward_list = assign_rewards_to_episode(ref_audio, audio_data, episode_len)
+                amp_reward_list, hit_reward_list, timing_reward_list = assign_rewards_to_episode(ref_audio, audio_data, episode_len)
                 
                 reward_trajectory = amp_reward_list * self.w_amp_rew \
-                                    + hit_reward_list * self.w_hit_rew 
+                                    + hit_reward_list * self.w_hit_rew \
+                                    + timing_reward_list * self.w_timing_rew
 
                 assert len(reward_trajectory) == episode_len, len(reward_trajectory)
                 assert len(obs_trajectory) == episode_len, len(obs_trajectory)
@@ -191,6 +199,7 @@ class PsyonicForReal():
                                         rewards_dict={
                                             "Amplitude Reward": amp_reward_list * self.w_amp_rew,
                                             "Hit Reward": hit_reward_list * self.w_hit_rew,
+                                            "Timing Reward": timing_reward_list * self.w_timing_rew
                                             }, 
                                             img_path=f"result/vis_rewards/episode_{episode_num}.png")
 
@@ -198,11 +207,13 @@ class PsyonicForReal():
                 # epi_timing_rewards.append()
                 info["hit_rewards"] = (np.sum(hit_reward_list) * self.w_hit_rew)
                 info["amp_rewards"] = (np.sum(amp_reward_list) * self.w_amp_rew)
+                info["timing_rewards"] = (np.sum(timing_reward_list) * self.w_timing_rew)
 
                 self.logger.log(info, True)
                 rollouts_rew_total += np.sum(reward_trajectory)
                 rollouts_rew_amp += np.sum(amp_reward_list) * self.w_amp_rew
                 rollouts_rew_hit += np.sum(hit_reward_list) * self.w_hit_rew
+                rollouts_rew_timing += np.sum(timing_reward_list) * self.w_timing_rew
 
 
                 for obs, action, step_reward, val, log_prob in zip(obs_trajectory, act_trajectory, reward_trajectory, val_trajectory, log_prob_trajectory):
@@ -223,7 +234,7 @@ class PsyonicForReal():
                 time.sleep(0.5)
                 print("pose reset to ", reset_pose)
 
-        return rollouts_rew_total, rollouts_rew_amp, rollouts_rew_hit
+        return rollouts_rew_total, rollouts_rew_amp, rollouts_rew_hit, rollouts_rew_timing
 
 
     def update(self):
@@ -278,7 +289,7 @@ class PsyonicForReal():
                 #     self.max_vel = min(self.max_vel * self.velocity_free_coef, 5)
                 #     self.min_vel = max(self.min_vel * self.velocity_free_coef, -5)
                 print(self.max_vel)
-                rollouts_rew_total, rollouts_rew_amp, rollouts_rew_hit = self.sample_trajectory(i, PPO, PPOBuffer, max_steps_per_sampling, episode_len, min_vel=self.min_vel, max_vel=self.max_vel, samplerate=self.samplerate)
+                rollouts_rew_total, rollouts_rew_amp, rollouts_rew_hit, rollouts_rew_timing = self.sample_trajectory(i, PPO, PPOBuffer, max_steps_per_sampling, episode_len, min_vel=self.min_vel, max_vel=self.max_vel, samplerate=self.samplerate)
                 # PPO training update
                 for _ in range(self.k_epoch):
                     mini_batch_data = PPOBuffer.get_mini_batch(mini_batch_size=self.mini_batch_size) # split data into different subsets
@@ -302,7 +313,8 @@ class PsyonicForReal():
                 training_info= {"actor_loss": np.mean(actor_loss_ls), "critic_loss": np.mean(critic_loss_ls), "total_loss": np.mean(total_loss_ls)}
 
 
-                training_info.update({"rollouts_rew_total": rollouts_rew_total / self.n_epi , "rollouts_rew_amp": rollouts_rew_amp / self.n_epi, "rollouts_rew_hit": rollouts_rew_hit / self.n_epi})
+                training_info.update({"rollouts_rew_total": rollouts_rew_total / self.n_epi , "rollouts_rew_amp": rollouts_rew_amp / self.n_epi, 
+                                      "rollouts_rew_hit": rollouts_rew_hit / self.n_epi, "rollous_rew_timing": rollouts_rew_timing / self.n_epi})
                 self.logger.log(training_info)
                 print(PPO.mu)
                 print(PPO.log_std)
@@ -320,8 +332,10 @@ class PsyonicForReal():
 
         for i in range(episode_length):
             obs = np.concatenate((np.array([i]), prev_action, curr_action), axis=0)
-            action = PPO.get_best_action(obs)
-            action = norm_to_action_space(action)
+            obs = normilize_obs(obs, total_timestep=episode_length, min_pos=self.pose_lower[-1], max_pos=self.pose_upper[-1])
+            ori_action = PPO.get_best_action(obs)
+            clipped_action = np.clip(ori_action, -1, 1)
+            action = norm_to_action_space(clipped_action)
 
             prev_action = curr_action
             if self.beta_dist:

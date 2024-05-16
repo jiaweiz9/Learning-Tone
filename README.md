@@ -71,3 +71,19 @@ data:
 - 70
 - -0
 "
+
+
+rostopic pub robot1/psyonic_controller std_msgs/Float32MultiArray "layout:
+  dim:
+  - label: ''
+    size: 0
+    stride: 0
+  data_offset: 0
+data:
+- 70
+- 70
+- 110
+- 115
+- 50
+- -10
+"

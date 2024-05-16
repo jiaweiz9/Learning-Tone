@@ -1,7 +1,7 @@
 import sys, os, time
 import numpy as np
 sys.path.append(os.path.dirname((os.path.dirname(os.path.abspath(os.path.dirname(__file__))))))
-from utils.class_motionhelper import Timer
+# from utils.class_motionhelper import Timer
 
 # Calculation Functions - Obeservations
 def get_velocity(prev_action, curr_action, ros_rate=50):
@@ -48,6 +48,15 @@ def action_space_to_norm(action, action_min=-50, action_max=-10):
 def norm_to_action_space(norm_x, action_min=-50, action_max=-10):
     action = (norm_x + 1) * (action_max - action_min) / 2 + action_min
     return action
+
+def normilize_obs(obs, total_timestep = 100.0, min_pos = -50.0, max_pos = -10.0):
+    # Normalize the time step
+    obs[0] = (obs[0] / total_timestep) * 2 - 1
+    
+    # Normalize the action space
+    obs[1:] = (obs[1:] - min_pos) / (max_pos - min_pos) * 2 - 1
+
+    return obs
 
 
 def acc_clip_action():

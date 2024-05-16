@@ -15,14 +15,15 @@ class FlagSubscriber():
 class HandValueSubscriber():
     def __init__(self):
         self.data = []
-        self.encoder_sub = rospy.Subscriber('/psyonic_hand_vals', handVal, self.callback)
+        self.encoder_sub = rospy.Subscriber('/robot1/psyonic_hand_vals', handVal, self.callback)
     def callback(self, data):
+        print("IN CALLBACK")
         self.data = data.positions
 
 class ForceValueSubscriber():
     def __init__(self):
         self.data = []
-        self.encoder_sub = rospy.Subscriber('/psyonic_hand_vals', handVal, self.callback)
+        self.encoder_sub = rospy.Subscriber('/robot1/psyonic_hand_vals', handVal, self.callback)
     def callback(self, data):
         self.data = data.fingertips
 
@@ -41,3 +42,10 @@ class QPosSubscriber():
         # self.height = int(data.layout.dim[1].size)
         # self.num = int(data.layout.dim[2].size)
         self.data = data.position
+
+# rospy.init_node('psyonic', anonymous=True)
+# val_subscriber = HandValueSubscriber()
+# while True:
+#     print(val_subscriber.data)
+#     rospy.sleep(0.2)
+#     rospy.spin()

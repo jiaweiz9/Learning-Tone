@@ -67,10 +67,25 @@ def dtw_reward(ref_audio_envelop, rec_audio_envelop):
     return dtw
 
 
-def onset_timing_reward(audio_data_step_window, ref_data_step_window):
-    pass
+def onset_timing_reward(onset_hit_times_ref, onset_hit_times_rec):
 
-def onset_hit_reward(ref_audio, rec_audio, epi_length, effect_window=10, sr=44100):
+    def pad_with_infinity(lst, length):
+        current_length = len(lst)
+        if current_length < length:
+            lst = np.append(lst, [float('inf')] * (length - current_length))
+        return lst
+    
+    max_length = max(len(onset_hit_times_rec), len(onset_hit_times_ref))
+    onset_hit_times_ref = pad_with_infinity(onset_hit_times_ref, max_length)
+    onset_hit_times_rec = pad_with_infinity(onset_hit_times_rec, max_length)
+
+    timing_reward = 0
+    for i in range(max_length):
+        timing_reward += np.exp(-abs(onset_hit_times_ref[i] / 44100 - onset_hit_times_rec[i] / 44100))
+    return timing_reward
+             
+
+def onset_hit_reward(ref_audio, rec_audio, epi_length, sr=44100):
     onset_strength_envelop_rec = librosa.onset.onset_strength(y=rec_audio, sr=sr)
     onset_strength_envelop_ref = librosa.onset.onset_strength(y=ref_audio, sr=sr)
     onset_strength_envelop_rec = np.array([0.0 if onset_strength < 5 else onset_strength for onset_strength in onset_strength_envelop_rec])
@@ -89,13 +104,17 @@ def onset_hit_reward(ref_audio, rec_audio, epi_length, effect_window=10, sr=4410
 
     hit_reward_list = np.zeros(epi_length)
     hit_reward_list[-1] = - min(abs(len(onset_hit_times_rec) - len(onset_hit_times_ref)), 10)
-    if len(onset_hit_times_rec) == 0:
-        hit_reward_list[-1] = -10
 
-    if len(onset_hit_times_rec) == len(onset_hit_times_ref):
-        hit_reward_list[-1] += np.exp(- euclidean(onset_hit_times_ref / 44100.0, onset_hit_times_rec / 44100.0)) * 10
+    timing_reward_list = np.zeros(epi_length)
+    timing_reward_list[-1] = onset_timing_reward(onset_hit_times_ref, onset_hit_times_rec)
 
-    return hit_reward_list
+    # if len(onset_hit_times_rec) == 0:
+    #     hit_reward_list[-1] = -10
+
+    # if len(onset_hit_times_rec) == len(onset_hit_times_ref):
+    #     hit_reward_list[-1] += np.exp(- euclidean(onset_hit_times_ref / 44100.0, onset_hit_times_rec / 44100.0)) * 10
+
+    return hit_reward_list, timing_reward_list
 
 
 def assign_rewards_to_episode(ref_audio, rec_audio, epi_length):
@@ -123,9 +142,9 @@ def assign_rewards_to_episode(ref_audio, rec_audio, epi_length):
         amp_reward_list.append(amp_reward)
         # dtw_reward_list.append(dtw)
     
-    onset_hit_reward_list = onset_hit_reward(ref_audio, rec_audio, epi_length)
+    hit_reward_list, timing_reward_list = onset_hit_reward(ref_audio, rec_audio, epi_length)
 
-    return np.array(amp_reward_list), np.array(onset_hit_reward_list)
+    return np.array(amp_reward_list), np.array(hit_reward_list), np.array(timing_reward_list)
 
 
 
