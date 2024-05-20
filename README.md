@@ -80,7 +80,7 @@ rostopic pub robot1/psyonic_controller std_msgs/Float32MultiArray "layout:
     stride: 0
   data_offset: 0
 data:
-- 70
+- 50
 - 70
 - 110
 - 115

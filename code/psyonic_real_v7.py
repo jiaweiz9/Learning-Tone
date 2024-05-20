@@ -26,7 +26,7 @@ class PsyonicForReal():
         # reward setting
         self.w_amp_rew = 0
         self.w_dtw_rew = 100
-        self.w_timing_rew = 10 
+        self.w_timing_rew = 20
         self.w_hit_rew = 20
 
         # recorder setting
@@ -46,7 +46,7 @@ class PsyonicForReal():
         self.reload_iter = args.reload_iter
 
         # action setting
-        self.initial_pose = np.array([70, 70, 110, 115, 50, -10])
+        self.initial_pose = np.array([50, 70, 110, 115, 50, -10])
         self.pose_upper = np.array([-10])
         self.pose_lower = np.array([-50])
         print("initial pose:", self.initial_pose)
@@ -68,10 +68,10 @@ class PsyonicForReal():
         self.beta_dist = args.beta_dist
 
         # logger setting
-        log_config = {"w_amp_rew": self.w_amp_rew, "w_hit_rew": self.w_hit_rew,
+        log_config = {"w_amp_rew": self.w_amp_rew, "w_hit_rew": self.w_hit_rew, "w_timing_rew": self.w_timing_rew,
                       "n_epi": self.n_epi, "mini_batch_size": self.mini_batch_size, "beta_dist": self.beta_dist}
 
-        self.logger = Logger(args.WANDB, log_config, resume = False)
+        self.logger = Logger(args.WANDB, log_config, resume ='must')
         self.Recoder = SoundRecorder(samplerate=self.samplerate, audio_device=None) # Bug fixed!! audio_devce=None is to use default connected device
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -88,7 +88,7 @@ class PsyonicForReal():
         self.QPosPublisher = QPosPublisher()
 
     def reset(self):
-        reset_pose = np.random.random() * (self.pose_upper - self.pose_lower) + self.pose_lower
+        reset_pose = self.pose_upper - np.random.random() * (self.pose_upper - self.pose_lower) / 2
         return reset_pose
     
     
@@ -112,7 +112,7 @@ class PsyonicForReal():
 
             if i % episode_len == 0:
                 prev_action = curr_action
-                obs = np.concatenate((np.array([i], dtype=np.float64), prev_action, curr_action), axis=0)
+                obs = np.concatenate((np.array([i % episode_len], dtype=np.float64), prev_action, curr_action), axis=0)
                 obs = normilize_obs(obs, total_timestep=episode_len, min_pos=self.pose_lower[-1], max_pos=self.pose_upper[-1])
                 # Start recording
                 self.Recoder.start_recording()
@@ -146,7 +146,7 @@ class PsyonicForReal():
             publish_pose = np.concatenate((self.initial_pose[:-1], curr_action), axis=0)
             self.QPosPublisher.publish_once(publish_pose) # Publish action 0.02 sec
 
-            next_obs = np.concatenate((np.array([i + 1]), prev_action, curr_action), axis=0)
+            next_obs = np.concatenate((np.array([(i+1) % episode_len], dtype=np.float64), prev_action, curr_action), axis=0)
             next_obs = normilize_obs(next_obs, total_timestep=episode_len, min_pos=self.pose_lower[-1], max_pos=self.pose_upper[-1])
 
             obs_trajectory.append(obs)
@@ -321,11 +321,11 @@ class PsyonicForReal():
 
                 if self.SAVE_WEIGHTS and (i + 1) % self.weight_iter_num == 0:
                     torch.save(PPO.state_dict(), f"result/ppo/weights/PPO_{i + 1}.pth")
-                    self.eval_policy(PPO)
+                    # self.eval_policy(PPO)
 
 
     def eval_policy(self, PPO):
-        self.QPosPublisher(self.initial_pose)
+        self.QPosPublisher.publish_once(self.initial_pose)
         prev_action = curr_action = self.initial_pose[-1]
         episode_length = self.record_duration * self.ros_rate
         print("evaluating results..")

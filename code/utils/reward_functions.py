@@ -82,6 +82,9 @@ def onset_timing_reward(onset_hit_times_ref, onset_hit_times_rec):
     timing_reward = 0
     for i in range(max_length):
         timing_reward += np.exp(-abs(onset_hit_times_ref[i] / 44100 - onset_hit_times_rec[i] / 44100))
+
+    if max_length == 1 and timing_reward >= 0.8:
+        timing_reward += 2 * timing_reward
     return timing_reward
              
 
