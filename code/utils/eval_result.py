@@ -26,7 +26,10 @@ def visualize_audio(ref_audio, audio_data, sr):
     axs[1].set_ylabel('Amplitude')
 
     plt.tight_layout()
-    plt.show()
+    plt.show(block=False)
+    plt.pause(0.5)
+    plt.close()
+
 
 def visualize_audio_wavio(ref_audio, audio_data, sr):
     time = np.arange(0, max(len(audio_data), len(ref_audio))) / sr
