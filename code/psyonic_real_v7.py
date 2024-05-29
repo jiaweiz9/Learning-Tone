@@ -188,7 +188,7 @@ class PsyonicForReal():
                 # ref_audio[abs(ref_audio) < hit_amp_th] = 1e-5
                 max_amp = np.max(abs(audio_data))
                 if max_amp < hit_amp_th:
-                    audio_data = 1e-5
+                    audio_data[:] = 1e-5
 
                 self.Recoder.clear_buffer()
                 print("audio_data shape: ", audio_data.shape)
