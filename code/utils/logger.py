@@ -5,11 +5,11 @@ import prettytable as pt
 
 
 class Logger:
-    def __init__(self, WANDB: bool, config: dict, resume: bool):
+    def __init__(self, WANDB: bool, config: dict, resume: bool, id:str = None):
         self.config = config
         if WANDB:
             wandb.init(project='music_finger', name='xylophone_experiment_' + datetime.now().strftime('%m-%d-%H-%M'), 
-                       config=config, id='cfugbm2u', resume=resume)
+                       config=config, id=id, resume=resume)
         #     self.logger = self._logger_wandb
         # else:
         #     self.logger = self._logger_terminal

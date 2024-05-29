@@ -6,7 +6,7 @@ import wavio
 from utils.reward_functions import assign_rewards_to_episode
 
 #TODO: Visualize the reference audio and the performed audio
-def visualize_audio(ref_audio, audio_data, sr):
+def visualize_audio(ref_audio, audio_data, sr, block = False):
     time = np.arange(0, max(len(audio_data), len(ref_audio))) / sr
     ref_audio = np.pad(ref_audio, (0, len(time) - len(ref_audio)))
     audio_data = np.pad(audio_data, (0, len(time) - len(audio_data)))
@@ -21,13 +21,13 @@ def visualize_audio(ref_audio, audio_data, sr):
 
     # Plot the performance audio
     axs[1].plot(time, audio_data, color='orange')
-    axs[1].set_title('Performance Audio')
+    axs[1].set_title('Performed Audio')
     axs[1].set_xlabel('Time (s)')
     axs[1].set_ylabel('Amplitude')
 
     plt.tight_layout()
-    plt.show(block=False)
-    plt.pause(0.5)
+    plt.show(block=block)
+    plt.pause(1)
     plt.close()
 
 
@@ -44,7 +44,7 @@ def visualize_audio_wavio(ref_audio, audio_data, sr):
 
     # Plot the performance audio
     axs[1].plot(time, audio_data, color='orange')
-    axs[1].set_title('Performance Audio')
+    axs[1].set_title('Performed Audio')
     axs[1].set_xlabel('Time (s)')
     axs[1].set_ylabel('Amplitude')
 
@@ -67,7 +67,7 @@ def visualize_reward_components(ref_audio, audio_data, epi_length, sr):
 
     # Plot the performance audio
     axs[1].plot(time, audio_data, color='orange')
-    axs[1].set_title('Performance Audio')
+    axs[1].set_title('Performed Audio')
     axs[1].set_xlabel('Time (s)')
     axs[1].set_ylabel('Amplitude')
 

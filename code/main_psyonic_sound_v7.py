@@ -22,9 +22,9 @@ if __name__ == '__main__':
     parser.add_argument('--mini_batch_size', type=int, default=40)
     
     parser.add_argument('--n_epi', type=int, default=40) # n_epi * 50 * record_duration = steps per sampling
-    parser.add_argument('--k_epoch', type=int, default=10) # num of epoch for gradient descent
+    parser.add_argument('--k_epoch', type=int, default=20) # num of epoch for gradient descent
     parser.add_argument('--max_pos', type=float, default=1.0)
-    parser.add_argument('--obs_dim', type=int, default=3)
+    parser.add_argument('--obs_dim', type=int, default=2)
     parser.add_argument('--act_dim', type=int, default=1)
     parser.add_argument('--beta_dist', action="store_true")
     parser.add_argument('--reload_iter', type=int, default=0)
@@ -40,7 +40,9 @@ if __name__ == '__main__':
     parser.add_argument('--max_grad', type=float, default=0.5)
     parser.add_argument('--samplerate', type=int, default=44100) # Audio sample rate
     parser.add_argument('--WANDB', action="store_true")
+    parser.add_argument('--wandb_id', type=str)
     parser.add_argument('--weight_iter_num', type=int, default=10)
     parser.add_argument('--SAVE_WEIGHTS', action="store_true")
+    parser.add_argument('--load_path', type=str)
     args = parser.parse_args()
     main(args)
