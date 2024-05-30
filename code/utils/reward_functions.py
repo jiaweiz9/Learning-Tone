@@ -115,7 +115,7 @@ def onset_hit_reward(ref_audio, rec_audio, epi_length, sr=44100):
     print("onset_hit_times_rec: ", onset_hit_times_rec)
 
     hit_reward_list = np.zeros(epi_length)
-    hit_reward_list[-1] = - min(abs(len(onset_hit_times_rec) - len(onset_hit_times_ref)), 10) if len(onset_hit_times_rec) > 0 else -10
+    hit_reward_list[-1] = - min(abs(len(onset_hit_times_rec) - len(onset_hit_times_ref)), 20) if len(onset_hit_times_rec) > 0 else -10
 
     timing_reward_list = np.zeros(epi_length)
     timing_reward_list[-1] = onset_timing_reward(onset_hit_times_ref, 

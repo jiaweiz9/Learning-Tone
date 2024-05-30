@@ -27,7 +27,7 @@ class PsyonicForReal():
         self.w_amp_rew = 0
         self.w_dtw_rew = 100
         self.w_timing_rew = 100
-        self.w_hit_rew = 20
+        self.w_hit_rew = 10
         self.w_move_rew = 1
 
         # recorder setting
@@ -50,8 +50,12 @@ class PsyonicForReal():
         self.initial_pose = np.array([50, 70, 110, 115, 50, -10])
         self.pose_upper = np.array([-10])
         self.pose_lower = np.array([-50])
+        
         print("initial pose:", self.initial_pose)
         self.velocity_free_coef = args.velocity_free_coef
+        self.discrete_action_space = args.discrete_action_space
+        if self.discrete_action_space:
+            self.action_space = np.array([-10, -20, -30, -40, -50])
         self.min_vel = args.min_vel
         self.max_vel = args.max_vel
 
@@ -72,7 +76,8 @@ class PsyonicForReal():
         # logger setting
         log_config = {"w_amp_rew": self.w_amp_rew, "w_hit_rew": self.w_hit_rew, "w_timing_rew": self.w_timing_rew,
                       "w_move_rew": self.w_move_rew,
-                      "n_epi": self.n_epi, "mini_batch_size": self.mini_batch_size, "beta_dist": self.beta_dist}
+                      "n_epi": self.n_epi, "mini_batch_size": self.mini_batch_size, 
+                      "beta_dist": self.beta_dist, "discrete_action_space": self.discrete_action_space}
 
         if args.wandb_id: 
             self.logger = Logger(args.WANDB, log_config, resume='must', id=args.wandb_id)
@@ -94,7 +99,7 @@ class PsyonicForReal():
         self.QPosPublisher = QPosPublisher()
 
     def reset(self):
-        reset_pose = self.pose_upper - np.random.random() * (self.pose_upper - self.pose_lower) / 3
+        reset_pose = self.initial_pose[-1:]
         return reset_pose
 
     def tf_pos_emb(self, time_step):
@@ -122,8 +127,12 @@ class PsyonicForReal():
         for i in range(max_step):
 
             if i % episode_len == 0:
+                reset_pose = self.reset()
+                self.QPosPublisher.publish_once(np.concatenate((self.initial_pose[:-1], reset_pose), axis=0))
+                time.sleep(0.5)
+                print("pose reset to ", reset_pose)
+                curr_action = reset_pose
                 prev_action = curr_action
-                # obs = np.concatenate((np.array([i % episode_len], dtype=np.float64), prev_action, curr_action), axis=0)
                 obs = np.concatenate((prev_action, curr_action), axis = 0)
                 obs = normilize_obs(obs, total_timestep=episode_len, min_pos=self.pose_lower[-1], max_pos=self.pose_upper[-1])
                 # Start recording
@@ -135,26 +144,27 @@ class PsyonicForReal():
             # Get action from actor
             prev_action = curr_action
             ori_action, log_prob, val = PPO_agent.get_action(obs)
-            # print("output of policy:", ori_action)
-            # print("prob: ", np.exp(log_prob))
-            clipped_action = np.clip(ori_action, -1, 1)
-            # print("clipped action:", clipped_action)
-            action = norm_to_action_space(clipped_action)
-            # print("rectified action:", action)
-            # print("prev action: ", prev_action)
+            # print("ori_action:", ori_action)
+            # print("log_prob:", log_prob)
+            if self.discrete_action_space is False:
+                clipped_action = np.clip(ori_action, -1, 1)
+                action = norm_to_action_space(clipped_action)
+
             
             if self.beta_dist:
                 curr_action = beta_dist_to_action_space(action, self.pose_lower, self.pose_upper)
+            elif self.discrete_action_space:
+                curr_action = np.array([self.action_space[ori_action]])
             else:
                 curr_action = np.clip(action, self.pose_lower, self.pose_upper)
 
+            # print("curr action:", curr_action)
             # Clip action based on velocity
-            curr_action = clip_max_move(prev_action, curr_action, max_move=self.max_vel)
-            curr_action = clip_max_move(prev_action, curr_action, max_move=self.max_vel)
-            # print("vel clipped action:", curr_action)
+            # curr_action = clip_max_move(prev_action, curr_action, max_move=self.max_vel)
+            # curr_action = clip_max_move(prev_action, curr_action, max_move=self.max_vel)
             
-            curr_action = clip_max_move(prev_action, curr_action, max_move=self.max_vel)            
-            # print("vel clipped action:", curr_action)
+            # curr_action = clip_max_move(prev_action, curr_action, max_move=self.max_vel)
+            
             real_act_trajectory.append(curr_action[0])
             
             publish_pose = np.concatenate((self.initial_pose[:-1], curr_action), axis=0)
@@ -175,7 +185,7 @@ class PsyonicForReal():
             
             # Episode done
             if (i + 1) % episode_len == 0:
-                time.sleep(0.1)
+                # time.sleep(0.1)
                 self.Recoder.stop_recording()
                 audio_data = self.Recoder.get_current_buffer()
 
@@ -253,10 +263,6 @@ class PsyonicForReal():
                 log_prob_trajectory = []
                 real_act_trajectory = []
 
-                reset_pose = self.reset()
-                self.QPosPublisher.publish_once(np.concatenate((self.initial_pose[:-1], reset_pose), axis=0))
-                time.sleep(0.5)
-                print("pose reset to ", reset_pose)
 
         return rollouts_rew_total, rollouts_rew_amp, rollouts_rew_hit, rollouts_rew_timing, rollouts_rew_move
 
@@ -277,7 +283,8 @@ class PsyonicForReal():
                         value_coef=self.value_coef,
                         entropy_coef=self.entropy_coef,
                         max_grad=self.max_grad,
-                        beta_dist=self.beta_dist)
+                        beta_dist=self.beta_dist,
+                        discrete=self.discrete_action_space)
 
         PPOBuffer = PPOBufferClass(obs_dim=self.obs_dim,
                                     act_dim=self.act_dim,
@@ -292,10 +299,6 @@ class PsyonicForReal():
 
             # initial set
             control_joint_pos = self.initial_pose # 6-fingertip joint angles
-
-            print("Initial position: ", control_joint_pos)
-            self.QPosPublisher.publish_once(control_joint_pos)
-            print("Initial position published")
 
             if self.reload_iter > 0:
                 PPO.load_state_dict(torch.load(f"result/ppo/weights/PPO_{self.reload_iter}.pth"))

@@ -25,8 +25,9 @@ if __name__ == '__main__':
     parser.add_argument('--k_epoch', type=int, default=20) # num of epoch for gradient descent
     parser.add_argument('--max_pos', type=float, default=1.0)
     parser.add_argument('--obs_dim', type=int, default=2)
-    parser.add_argument('--act_dim', type=int, default=1)
+    parser.add_argument('--act_dim', type=int, default=5)
     parser.add_argument('--beta_dist', action="store_true")
+    parser.add_argument('--discrete_action_space', action="store_true")
     parser.add_argument('--reload_iter', type=int, default=0)
     
     parser.add_argument('--h_dims', nargs="+", type=int, default=[64, 64]) # change this term

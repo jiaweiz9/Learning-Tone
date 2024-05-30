@@ -3,7 +3,7 @@ import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from torch.distributions import Normal, LogNormal, Beta
+from torch.distributions import Normal, LogNormal, Beta, Categorical
 from torch.nn.functional import relu
 
 
@@ -56,7 +56,7 @@ class PPOBufferClass:
         self.buffer_size = buffer_size
         
         self.obs_buffer = np.zeros(shape=(buffer_size, obs_dim), dtype=np.float32)
-        self.act_buffer = np.zeros(shape=(buffer_size, act_dim), dtype=np.float32)
+        self.act_buffer = np.zeros(shape=(buffer_size, 1), dtype=np.float32) #### change act_dim to 1 when discrete action space ######
         self.reward_buffer = np.zeros(shape=(buffer_size, 1), dtype=np.float32)
         self.log_prob_buffer = np.zeros(shape=(buffer_size, 1), dtype=np.float32)
         self.return_buffer = np.zeros(shape=(buffer_size, 1), dtype=np.float32)
@@ -141,7 +141,8 @@ class ActorClass(nn.Module):
                  h_actv: nn.Module,
                  mu_actv: nn.Module,
                  lr_actor: float,
-                 beta_dist: bool = False):
+                 beta_dist: bool = False,
+                 discrete: bool = False):
         super(ActorClass, self).__init__()
         self.beta_dist = beta_dist
         self.layers = build_mlp(in_dim=obs_dim, h_dims=h_dims, h_actv=h_actv)
@@ -227,6 +228,7 @@ class PPOClass(nn.Module):
                  entropy_coef: float,
                  max_grad: float,
                  beta_dist: bool = False,
+                 discrete: bool = False
                  ):
         super(PPOClass, self).__init__()
         
@@ -238,8 +240,11 @@ class PPOClass(nn.Module):
         self.entropy_coef = entropy_coef
         self.max_grad = max_grad
         self.beta_dist = beta_dist
+        self.discrete = discrete
         if beta_dist:
-            self.actor = ActorClass(obs_dim=obs_dim,h_dims=h_dims,act_dim=act_dim,h_actv=nn.ReLU(),mu_actv=nn.Tanh(),lr_actor=lr_actorcritic, beta_dist=beta_dist)
+            self.actor = ActorClass(obs_dim=obs_dim,h_dims=h_dims,act_dim=act_dim,h_actv=nn.ReLU(),mu_actv=nn.Tanh(),lr_actor=lr_actorcritic, beta_dist=True)
+        elif discrete:
+            self.actor = ActorClass(obs_dim=obs_dim,h_dims=h_dims,act_dim=act_dim,h_actv=nn.ReLU(),mu_actv=nn.Tanh(),lr_actor=lr_actorcritic, discrete=True)
         else:
             self.actor = ActorClass(obs_dim=obs_dim,h_dims=h_dims,act_dim=act_dim,h_actv=nn.ReLU(),mu_actv=nn.Tanh(),lr_actor=lr_actorcritic)
             self.log_std = nn.Parameter(torch.ones(act_dim) * torch.log(torch.tensor((1.0))), requires_grad=True)
@@ -251,6 +256,8 @@ class PPOClass(nn.Module):
         if self.beta_dist:
             alpha, beta = self.actor(obs)
             dist = Beta(alpha, beta)
+        elif self.discrete:
+            dist = Categorical(logits = self.actor(obs))
         else:
             mu = self.actor(obs)
             self.mu = mu
@@ -274,7 +281,10 @@ class PPOClass(nn.Module):
         self.actor.eval()
         self.critic.eval()
         dist, val = self.forward(obs_torch)
-        best_action = dist.mean
+        if self.discrete:
+            best_action = torch.argmax(dist.probs)
+        else:
+            best_action = dist.mean
         print(best_action)
         return best_action[0].detach().numpy()
 
@@ -291,6 +301,7 @@ class PPOClass(nn.Module):
         obs_torch = obs_batch.clone().detach()
         action_torch = act_batch.clone().detach()
         dist, val = self.forward(obs_torch)
+        # print(dist)
         log_prob = dist.log_prob(action_torch)
         log_prob = torch.sum(log_prob, dim=-1, keepdim=True)
         # entropy = dist.entropy # truncated
