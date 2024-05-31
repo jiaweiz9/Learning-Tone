@@ -5,7 +5,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torch.distributions import Normal, LogNormal, Beta, Categorical
 from torch.nn.functional import relu
-
+import random
 
 
 
@@ -228,7 +228,8 @@ class PPOClass(nn.Module):
                  entropy_coef: float,
                  max_grad: float,
                  beta_dist: bool = False,
-                 discrete: bool = False
+                 discrete: bool = False,
+                 epsilon: float = 0.2
                  ):
         super(PPOClass, self).__init__()
         
@@ -241,6 +242,7 @@ class PPOClass(nn.Module):
         self.max_grad = max_grad
         self.beta_dist = beta_dist
         self.discrete = discrete
+        self.epsilon = epsilon
         if beta_dist:
             self.actor = ActorClass(obs_dim=obs_dim,h_dims=h_dims,act_dim=act_dim,h_actv=nn.ReLU(),mu_actv=nn.Tanh(),lr_actor=lr_actorcritic, beta_dist=True)
         elif discrete:
@@ -272,7 +274,10 @@ class PPOClass(nn.Module):
         self.actor.eval()
         self.critic.eval()
         dist, val = self.forward(obs_torch)
-        action = dist.sample()
+        if random.random() < self.epsilon:
+            action = dist.sample()
+        else:
+            action = torch.argmax(dist.probs).unsqueeze(-1)
         log_prob = torch.sum(dist.log_prob(action), dim=-1)
         return action[0].detach().numpy(), torch.squeeze(log_prob).detach().numpy(), torch.squeeze(val).detach().numpy()
     
@@ -301,8 +306,11 @@ class PPOClass(nn.Module):
         obs_torch = obs_batch.clone().detach()
         action_torch = act_batch.clone().detach()
         dist, val = self.forward(obs_torch)
-        # print(dist)
+        if self.discrete:
+            action_torch = torch.squeeze(action_torch)
         log_prob = dist.log_prob(action_torch)
+        if self.discrete:
+            log_prob = log_prob.unsqueeze(-1)
         log_prob = torch.sum(log_prob, dim=-1, keepdim=True)
         # entropy = dist.entropy # truncated
         entropy = dist.entropy() #Normal

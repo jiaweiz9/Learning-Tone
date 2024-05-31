@@ -11,8 +11,8 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", default=1, type=int)
-    parser.add_argument('--min_vel', type=float, default=-8.0)
-    parser.add_argument('--max_vel', type=float, default=8.0)
+    parser.add_argument('--min_vel', type=float, default=-10.0)
+    parser.add_argument('--max_vel', type=float, default=10.0)
     parser.add_argument('--velocity_free_coef', type=float, default=1)
     parser.add_argument('--ref_audio_path', type=str, default='ref_audio/xylophone/ref_hit1_clip.wav')
 
@@ -25,7 +25,7 @@ if __name__ == '__main__':
     parser.add_argument('--k_epoch', type=int, default=20) # num of epoch for gradient descent
     parser.add_argument('--max_pos', type=float, default=1.0)
     parser.add_argument('--obs_dim', type=int, default=2)
-    parser.add_argument('--act_dim', type=int, default=5)
+    parser.add_argument('--act_dim', type=int, default=3)
     parser.add_argument('--beta_dist', action="store_true")
     parser.add_argument('--discrete_action_space', action="store_true")
     parser.add_argument('--reload_iter', type=int, default=0)

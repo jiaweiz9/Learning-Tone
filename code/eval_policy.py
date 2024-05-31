@@ -11,8 +11,9 @@ import librosa
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--obs_dim', type=int, default=2)
-parser.add_argument('--act_dim', type=int, default=1)
+parser.add_argument('--act_dim', type=int, default=3)
 parser.add_argument('--beta_dist', action="store_true")
+parser.add_argument('--discrete', action="store_true")
 parser.add_argument('--step', type=int, default=100)
 parser.add_argument('--model_path', type=str) # 910 almost worked
 parser.add_argument('--ref_audio_path', type=str, default="ref_audio/xylophone/ref_hit1_clip.wav")
@@ -35,21 +36,27 @@ def exec_model():
                             value_coef=0.5,
                             entropy_coef=0.01,
                             max_grad=0.5,
-                            beta_dist=args.beta_dist)
+                            beta_dist=args.beta_dist,
+                            discrete=args.discrete,
+                            epsilon=0)
     PPO.load_state_dict(torch.load(args.model_path))
     action_list = []
-
+    action_space = np.array([-10, 0, +10])
     for i in range(args.step):
         print(f"step {i}")
+        prev_action = curr_action
+
         obs = np.concatenate((prev_action, curr_action), axis=0)
         obs = normilize_obs(obs, total_timestep=args.step, min_pos=pose_lower[-1], max_pos=pose_upper[-1])
         obs = obs + tf_pos_emb(i % args.step)
-        ori_action = PPO.get_best_action(obs)
+        ori_action, log_prob, val = PPO.get_action(obs)
 
-        clipped_action = np.clip(ori_action, -1, 1)
-        action = norm_to_action_space(clipped_action)
-
-        prev_action = curr_action
+        if args.discrete is False:
+            clipped_action = np.clip(ori_action, -1, 1)
+            action = norm_to_action_space(clipped_action)
+        else:
+            print(ori_action)
+            action = np.array([action_space[ori_action]]) + prev_action
         if args.beta_dist:
             curr_action = beta_dist_to_action_space(action, pose_lower, pose_upper)
         else:

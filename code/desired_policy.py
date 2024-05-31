@@ -18,7 +18,10 @@ desired_high_actions.fill(-10)
 desired_mid_actions.fill(-10)
 desired_low_actions.fill(-10)
 # ===================desired high movement (0.5)=========================
-desired_high_actions[20:23] = -50
+desired_high_actions[21] = -20
+desired_high_actions[22] = -30
+desired_high_actions[23] = -40
+desired_high_actions[24] = -50
 
 # ===================desired mid movement==========================
 desired_mid_actions[20:25] = -25

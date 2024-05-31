@@ -45,7 +45,7 @@ Make sure to have these components set up and connected appropriately before run
 
 ### Running the tests
 ```bash
-python main_psyonic_sound_v7.py --record_duration 2 --samplerate 44100 --max_iter 1000 --n_epi 5 --WANDB --SAVE_WEIGHTS --seed 
+python main_psyonic_sound_v7.py --record_duration 2 --samplerate 44100 --max_iter 1000 --n_epi 10 --WANDB --SAVE_WEIGHTS --seed 
 ```
 rosrun rosserial_python serial_node.py /dev/ttyACM0 _baud:=4000000
 

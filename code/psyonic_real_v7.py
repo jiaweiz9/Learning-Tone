@@ -55,7 +55,9 @@ class PsyonicForReal():
         self.velocity_free_coef = args.velocity_free_coef
         self.discrete_action_space = args.discrete_action_space
         if self.discrete_action_space:
-            self.action_space = np.array([-10, -20, -30, -40, -50])
+            #self.action_space = np.array([-10, -20, -30, -40, -50])
+            self.action_space = np.array([-10, 0, +10])
+            # self.action_space = np.array([-10, 0, 10])
         self.min_vel = args.min_vel
         self.max_vel = args.max_vel
 
@@ -154,14 +156,13 @@ class PsyonicForReal():
             if self.beta_dist:
                 curr_action = beta_dist_to_action_space(action, self.pose_lower, self.pose_upper)
             elif self.discrete_action_space:
-                curr_action = np.array([self.action_space[ori_action]])
-            else:
-                curr_action = np.clip(action, self.pose_lower, self.pose_upper)
+                curr_action = np.array([self.action_space[ori_action]]) + prev_action
+            # else:
+            curr_action = np.clip(curr_action, self.pose_lower, self.pose_upper)
 
             # print("curr action:", curr_action)
             # Clip action based on velocity
-            # curr_action = clip_max_move(prev_action, curr_action, max_move=self.max_vel)
-            # curr_action = clip_max_move(prev_action, curr_action, max_move=self.max_vel)
+            curr_action = clip_max_move(prev_action, curr_action, max_move=self.max_vel)
             
             # curr_action = clip_max_move(prev_action, curr_action, max_move=self.max_vel)
             
@@ -248,7 +249,6 @@ class PsyonicForReal():
                 rollouts_rew_timing += np.sum(timing_reward_list) * self.w_timing_rew
                 rollouts_rew_move += np.sum(move_penalty_list) * self.w_move_rew
 
-
                 for obs, action, step_reward, val, log_prob in zip(obs_trajectory, act_trajectory, reward_trajectory, val_trajectory, log_prob_trajectory):
                     buffer.put(obs, action, step_reward, val, log_prob)
                 
@@ -314,9 +314,8 @@ class PsyonicForReal():
 
                 print("=================Iteration: ", i, "=================")
                 # Sample n trajectories, total steps = n * episode_len
-                # if (i + 1) % 5 == 0:
-                #     self.max_vel = min(self.max_vel * self.velocity_free_coef, 5)
-                #     self.min_vel = max(self.min_vel * self.velocity_free_coef, -5)
+                # if (i + 1) % 200 == 0:
+                #     self.max_vel = min(10 + self.max_vel, 40)
                 print(self.max_vel)
                 rollouts_rew_total, rollouts_rew_amp, rollouts_rew_hit, rollouts_rew_timing, rollouts_rew_move = self.sample_trajectory(
                     iter = i, 
@@ -342,6 +341,7 @@ class PsyonicForReal():
                         log_prob_batch = np2torch(mini_batch_data[k]['log_prob'])
                         return_batch = np2torch(mini_batch_data[k]['return'])
 
+                        # print("prob:", torch.exp(log_prob_batch))
                         actor_loss, critic_loss, total_loss = PPO.update(obs_batch, act_batch, log_prob_batch, advantage_batch, return_batch)
                         actor_loss_ls.append(actor_loss.numpy())
                         critic_loss_ls.append(critic_loss.numpy())
