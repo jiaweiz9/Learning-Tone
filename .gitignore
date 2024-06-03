@@ -2,3 +2,5 @@ __pycache__/
 wandb/
 .python-version
 result/
+code/
+*.egg-info/
