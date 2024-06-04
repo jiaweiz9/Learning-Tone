@@ -17,6 +17,8 @@ setup(
         "matplotlib",
         "librosa",
         "hydra-core",
-        "tqdm"
+        "tqdm",
+        "torch",
+        "tensorboard",
     ],
 )

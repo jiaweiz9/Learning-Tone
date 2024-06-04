@@ -3,28 +3,45 @@ import librosa
 import matplotlib.pyplot as plt
 import wavio
 from stable_baselines3.common.callbacks import BaseCallback
+import os
 # from utils.reward_functions import assign_rewards_to_episode
 
-#TODO: How to get episode data from training environment
 class VisualizeEpisodeCallback(BaseCallback):
-    def __init__(self, verbose: int = 0):
+    def __init__(self, verbose: int = 0, figures_path: str = None):
         super().__init__(verbose)
-        self.unwrapped_env = self.training_env.unwrapped
+        # self.unwrapped_env = self.training_env.unwrapped
+        if figures_path is None:
+            self.figures_path = "results/figures/"
+        else:
+            self.figures_path = figures_path
+
+        if not os.path.exists(self.figures_path):
+            os.makedirs(self.figures_path)
         
 
     def _on_step(self) -> bool:
         """
         Visualize the latest episode data every 1000 timesteps, i.e., 10 episodes
         """
+        # print(self.training_env)
+        if self.num_timesteps % 100 == 0:
+            self.logger.record_mean("hitting_times_reward", self.training_env.get_attr("last_hitting_times_reward")[0])
+            self.logger.record_mean("hitting_timing_reward", self.training_env.get_attr("last_hitting_timing_reward")[0])
+
         if self.num_timesteps % 500 == 0:
-            last_rec_audio = self.unwrapped_env.last_rec_audio
-            ref_audio = self.unwrapped_env.ref_audio
+            last_rec_audio = self.training_env.get_attr("last_rec_audio")[0] # fix: returned value is a list
+            ref_audio = self.training_env.get_attr("ref_audio")[0]
             self.__visualize_audio(ref_audio, last_rec_audio, sr=44100)
 
-        return super()._on_step()
+        return True
+
+    def _on_rollout_start(self) -> None:
+        os.system("clear")
+        print(f"Rollout {self.num_timesteps // 100} started")
+        return super()._on_rollout_start()
+
 
     def _on_rollout_end(self) -> None:
-
         return super()._on_rollout_end()
 
 
@@ -34,8 +51,12 @@ class VisualizeEpisodeCallback(BaseCallback):
         ref_audio = np.pad(ref_audio, (0, len(time) - len(ref_audio)))
         rec_audio = np.pad(rec_audio, (0, len(time) - len(rec_audio)))
 
+        print("time shape: ", time.shape)
+        print("ref_audio shape: ", ref_audio.shape)
+        print("rec_audio shape: ", rec_audio.shape)
+
         # Create a figure and two subplots with shared x-axis
-        fig, axs = plt.subplots(3, figsize=(9, 12))
+        fig, axs = plt.subplots(2, figsize=(9, 12))
 
         # Plot the reference audio
         axs[0].plot(time, ref_audio, color='blue')
@@ -61,5 +82,6 @@ class VisualizeEpisodeCallback(BaseCallback):
         #     axs[2].set_title("Reward Components")
         #     axs[2].set_ylabel('Reward')
         #     axs[2].legend()
-        img_path = "results/figures/episode_{}.png".format(self.num_timesteps)
+        file_name = f"episode_{self.num_timesteps}.png"
+        img_path = os.path.join(self.figures_path, file_name)
         plt.savefig(img_path)

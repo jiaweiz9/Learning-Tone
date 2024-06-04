@@ -6,3 +6,4 @@ code/
 *.egg-info/
 .vscode/**
 outputs
+results

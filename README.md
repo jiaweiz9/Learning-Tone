@@ -1,6 +1,4 @@
-# Making-sound-with-hand
-
-Generating Realistic Sound with Prosthetic Hand: A Reinforcement Learning Approach [EMBC 2024 Submitted]
+# Psyonic Hand Playing Xylophone
 
 ## Getting Started
 ### Prerequisites
@@ -53,10 +51,11 @@ rosrun rosserial_python serial_node.py /dev/ttyACM0 _baud:=4000000
 Taemoon Jeong, taemoon-jeong@korea.ac.kr
 
 
-## Denoise
-Download NoiseTorch: [text](https://github.com/noisetorch/NoiseTorch)
+<!-- ## Denoise
+Download NoiseTorch: [text](https://github.com/noisetorch/NoiseTorch) -->
 
-## Init Position setup
+## Initial Position setup
+```
 rostopic pub robot1/psyonic_controller std_msgs/Float32MultiArray "layout:
   dim:
   - label: ''
@@ -72,7 +71,6 @@ data:
 - -0
 "
 
-
 rostopic pub robot1/psyonic_controller std_msgs/Float32MultiArray "layout:
   dim:
   - label: ''
@@ -87,3 +85,4 @@ data:
 - 50
 - -10
 "
+```

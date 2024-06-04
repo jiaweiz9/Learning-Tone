@@ -87,16 +87,25 @@ class PsyonicThumbEnv(gym.Env):
             sr=44100
         )
 
+        self.last_amplitude_reward = rec_ref_reward.amplitude_reward()
+        self.last_hitting_times_reward = rec_ref_reward.hitting_times_reward()
+        self.last_onset_shape_reward = rec_ref_reward.onset_shape_reward()
+        self.last_hitting_timing_reward = rec_ref_reward.hitting_timing_reward()
+
         print(f"episode reward computed done!")
         return (
-            self.config["reward_weight"]["amplitude"] * rec_ref_reward.amplitude_reward() +
-            self.config["reward_weight"]["hitting_times"] * rec_ref_reward.hitting_times_reward() +
-            self.config["reward_weight"]["onset_shape"] * rec_ref_reward.onset_shape_reward() +
-            self.config["reward_weight"]["hitting_timing"] * rec_ref_reward.hitting_timing_reward() 
+            self.config["reward_weight"]["amplitude"] * self.last_amplitude_reward +
+            self.config["reward_weight"]["hitting_times"] * self.last_hitting_times_reward +
+            self.config["reward_weight"]["onset_shape"] * self.last_onset_shape_reward +
+            self.config["reward_weight"]["hitting_timing"] * self.last_hitting_timing_reward 
         )
 
     def step(self, action)-> Tuple[Dict[str, Any], int, bool, bool, dict]:
         self.time_step += 1
+
+        if self.time_step == 1:
+            self.sound_recorder.start_recording()
+
         self.previous_thumb_joint = self.current_thumb_joint
         self.current_thumb_joint += self._action_to_joint_movement[action]
 
@@ -111,7 +120,7 @@ class PsyonicThumbEnv(gym.Env):
         terminated = True if self.time_step >= self.config["epi_length"] else False
         if terminated:
             self.sound_recorder.stop_recording()
-            audio_data = self.sound_recorder.get_current_buffer()
+            audio_data = self.sound_recorder.get_current_buffer().squeeze()
             #self.sound_recorder.save_recording()
             print(f"Current episode data length: {audio_data.shape}")
             self.sound_recorder.clear_buffer()
@@ -138,8 +147,7 @@ class PsyonicThumbEnv(gym.Env):
         self.qpos_publisher.publish_once(self.initial_joints_state)
         print("Initial thumb joint: ", self.current_thumb_joint)
 
-
-        self.sound_recorder.start_recording()
+        # self.sound_recorder.start_recording()
 
         self.previous_thumb_joint = self.current_thumb_joint
         # self.target = np.random.uniform(-1, 1, (5,))
@@ -151,6 +159,13 @@ class PsyonicThumbEnv(gym.Env):
         return np.concatenate([self.initial_joints_state[:-1],
                                [self.current_thumb_joint]],
                                axis=0)
+    
+    def close(self):
+        del self.sound_recorder
+        del self.qpos_publisher
+        rospy.signal_shutdown("Shutting down the node")
+
+        return super().close()
 
 
 if __name__ == "__main__":
