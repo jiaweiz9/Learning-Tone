@@ -5,7 +5,7 @@ import wavio
 from stable_baselines3.common.callbacks import BaseCallback
 # from utils.reward_functions import assign_rewards_to_episode
 
-
+#TODO: How to get episode data from training environment
 class VisualizeEpisodeCallback(BaseCallback):
     def __init__(self, verbose: int = 0):
         super().__init__(verbose)
@@ -15,9 +15,9 @@ class VisualizeEpisodeCallback(BaseCallback):
         """
         Visualize the latest episode data every 1000 timesteps, i.e., 10 episodes
         """
-        if self.num_timesteps % 1000 == 0:
-            last_rec_audio = self.training_env.last_rec_audio
-            ref_audio = self.training_env.ref_audio
+        if self.num_timesteps % 500 == 0:
+            last_rec_audio = self.training_env.unwrapped.last_rec_audio
+            ref_audio = self.training_env.unwrapped.ref_audio
             self.__visualize_audio(ref_audio, last_rec_audio, sr=44100)
 
         return super()._on_step()

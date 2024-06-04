@@ -22,9 +22,9 @@ class PsyonicThumbEnv(gym.Env):
         self.action_space = gym.spaces.Discrete(3)
 
         self.observation_space = gym.spaces.Dict({
-            'time_embedding': gym.spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32),
-            'current_thumb_joint': gym.spaces.Box(low=-1, high=1, shape=(1,), dtype=np.float32),
-            'previous_thumb_joint': gym.spaces.Box(low=-1, high=1, shape=(1,), dtype=np.float32)
+            'time_embedding': gym.spaces.Box(low=-1, high=1, shape=(2,)),
+            'current_thumb_joint': gym.spaces.Box(low=-50, high=-10, shape=(1,)),
+            'previous_thumb_joint': gym.spaces.Box(low=-50, high=-10, shape=(1,))
         })
         #self.state = np.zeros(5)
         #self.target = np.random.uniform(-1, 1, (5,))
@@ -87,6 +87,7 @@ class PsyonicThumbEnv(gym.Env):
             sr=44100
         )
 
+        print(f"episode reward computed done!")
         return (
             self.config["reward_weight"]["amplitude"] * rec_ref_reward.amplitude_reward() +
             self.config["reward_weight"]["hitting_times"] * rec_ref_reward.hitting_times_reward() +
@@ -98,6 +99,8 @@ class PsyonicThumbEnv(gym.Env):
         self.time_step += 1
         self.previous_thumb_joint = self.current_thumb_joint
         self.current_thumb_joint += self._action_to_joint_movement[action]
+
+        # Clip the thumb joint command to make it within the feasible range
         self.current_thumb_joint = np.clip(self.current_thumb_joint,
                                            self.min_degree, 
                                            self.max_degree)
@@ -110,6 +113,7 @@ class PsyonicThumbEnv(gym.Env):
             self.sound_recorder.stop_recording()
             audio_data = self.sound_recorder.get_current_buffer()
             #self.sound_recorder.save_recording()
+            print(f"Current episode data length: {audio_data.shape}")
             self.sound_recorder.clear_buffer()
             self.last_rec_audio = audio_data
 

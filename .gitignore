@@ -4,3 +4,5 @@ wandb/
 result/
 code/
 *.egg-info/
+.vscode/**
+outputs

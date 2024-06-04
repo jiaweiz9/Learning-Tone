@@ -9,6 +9,7 @@ from psyonic_playing_xylophone.utils.vis_result import VisualizeEpisodeCallback
 import numpy as np
 import wandb
 from wandb.integration.sb3 import WandbCallback
+from datetime import datetime
 
 
 class TrainPPO:
@@ -16,20 +17,20 @@ class TrainPPO:
         self.env_id = config["env_id"]
         self.policy = config["policy"]
         self.total_timesteps = config["total_timesteps"]
-        self.reset_num_timesteps = config["reset_num_timesteps"]
+        # self.reset_num_timesteps = config["reset_num_timesteps"]
         self.load_model_path = config.get("load_model_path", None)
         self.n_steps = config["n_steps"]
 
-        self.env = gym.make(self.env_id)
+        self.env = gym.make(self.env_id, config = config)
         self.env = gym.wrappers.FlattenObservation(self.env)
 
         # Prepare the environment for training
-        check_env(self.env)
+        # check_env(self.env)
 
         # Set up checkpoint callback to save model
         self.checkpoint_callback = CheckpointCallback(
-            save_freq=1000,
-            save_path='./results/ppo',
+            save_freq=10000,
+            save_path=f"./results/ppo/{datetime.now().strftime('%m-%d-%H-%M')}",
             name_prefix='rl_model'
         )
 
@@ -41,14 +42,15 @@ class TrainPPO:
             group="thumb_sb3",
             tags=["ppo"],
             resume="allow",
-            id=config["wandb_id"]
+            id=config.get("wandb_run_id", None)
         )
         # Set up WandbCallback to load training progress to wandb
         self.wandb_callback = WandbCallback(
-            gradient_save_freq=1000,
-            model_save_freq=1000,
-            model_save_path='./results/ppo',
+            # gradient_save_freq=1000,
+            # model_save_freq=1000,
+            # model_save_path='./results/ppo',
             verbose=1,
+            log="parameters",
         )
 
         self.visualize_callback = VisualizeEpisodeCallback()
@@ -94,6 +96,8 @@ def launch_train(cfg: DictConfig):
     # print(cfg)
     cfg = OmegaConf.to_container(cfg)
     trainer = TrainPPO(config=cfg)
+
+    trainer.train()
 
 
 if __name__ == "__main__":

@@ -1,11 +1,11 @@
 env_id: PsyonicThumbEnv-v0
 policy: "MlpPolicy"
 total_timesteps: 100000
-n_steps: 2048
+n_steps: 1000  # n steps per update
 
-epi_length: 100,
+epi_length: 100
 reference_audio: "ref_audio/ref_high.wav"
-wandb_run_id: None
+# wandb_run_id: None
 # load_model_path: None
 
 psyonic:
@@ -17,5 +17,5 @@ reward_weight:
     movement: 1
     amplitude: 0
     hitting_times: 10
-    onset_shape: 100
+    onset_shape: 0
     hitting_timing: 10
