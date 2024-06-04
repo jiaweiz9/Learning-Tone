@@ -46,11 +46,11 @@ class TrainPPO:
         )
         # Set up WandbCallback to load training progress to wandb
         self.wandb_callback = WandbCallback(
-            # gradient_save_freq=1000,
-            # model_save_freq=1000,
-            # model_save_path='./results/ppo',
+            gradient_save_freq=1000,
+            model_save_freq=10000,
+            model_save_path=f"./results/ppo/{datetime.now().strftime('%m-%d-%H-%M')}",
             verbose=1,
-            log="parameters",
+            # log="parameters",
         )
 
         self.visualize_callback = VisualizeEpisodeCallback()
