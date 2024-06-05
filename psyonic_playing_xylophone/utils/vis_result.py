@@ -27,8 +27,10 @@ class VisualizeEpisodeCallback(BaseCallback):
         if self.num_timesteps % 100 == 0:
             self.logger.record_mean("hitting_times_reward", self.training_env.get_attr("last_hitting_times_reward")[0])
             self.logger.record_mean("hitting_timing_reward", self.training_env.get_attr("last_hitting_timing_reward")[0])
+            self.logger.record_mean("onset_shape_reward", self.training_env.get_attr("last_onset_shape_reward")[0])
+            self.logger.record_mean("amplitude_reward", self.training_env.get_attr("last_amplitude_reward")[0])
 
-        if self.num_timesteps % 500 == 0:
+        if self.num_timesteps % 1000 == 0:
             last_rec_audio = self.training_env.get_attr("last_rec_audio")[0] # fix: returned value is a list
             ref_audio = self.training_env.get_attr("ref_audio")[0]
             self.__visualize_audio(ref_audio, last_rec_audio, sr=44100)
@@ -36,8 +38,8 @@ class VisualizeEpisodeCallback(BaseCallback):
         return True
 
     def _on_rollout_start(self) -> None:
-        os.system("clear")
-        print(f"Rollout {self.num_timesteps // 100} started")
+        # os.system("clear")
+        print(f"Rollout {self.num_timesteps // 1000} started")
         return super()._on_rollout_start()
 
 
@@ -51,10 +53,8 @@ class VisualizeEpisodeCallback(BaseCallback):
         ref_audio = np.pad(ref_audio, (0, len(time) - len(ref_audio)))
         rec_audio = np.pad(rec_audio, (0, len(time) - len(rec_audio)))
 
-        print("time shape: ", time.shape)
-        print("ref_audio shape: ", ref_audio.shape)
-        print("rec_audio shape: ", rec_audio.shape)
-
+        # print("time shape: ", time.shape)
+        
         # Create a figure and two subplots with shared x-axis
         fig, axs = plt.subplots(2, figsize=(9, 12))
 

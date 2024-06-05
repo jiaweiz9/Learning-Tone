@@ -132,7 +132,7 @@ class TrainPPO:
     
 
 
-@hydra.main(version_base=None, config_path="psyonic_playing_xylophone/conf", config_name="psyonic_thumb")
+@hydra.main(version_base=None, config_path="psyonic_playing_xylophone/conf/psyonic_thumb", config_name="train")
 def launch_train(cfg: DictConfig):
     # print(cfg)
     cfg = OmegaConf.to_container(cfg)

@@ -29,6 +29,14 @@ class RecRefRewardFunction:
         if isinstance(self.rec_audio, np.ndarray) is False \
             or isinstance(self.ref_audio, np.ndarray) is False:
             raise ValueError("Reference audio and recorded audio must be numpy arrays, but reference audio is {} and recorded audio is {}".format(type(self.ref_audio), type(self.rec_audio)))
+        
+        # self.rec_audio[:]
+        hit_amp_th = 0.02
+        max_amp = np.max(abs(self.rec_audio))
+        if max_amp < hit_amp_th:
+            self.rec_audio[:] = 1e-5
+        print("ref_audio shape: ", self.ref_audio.shape)
+        print("rec_audio shape: ", self.rec_audio.shape)
 
 
     def __generate_audio_strength_info(self):
@@ -40,8 +48,8 @@ class RecRefRewardFunction:
         # self._ref_onset_strength_envelop /= np.max(self._ref_onset_strength_envelop)
 
         # Filter out the small onset strength values
-        self._rec_onset_strength_envelop[self._rec_onset_strength_envelop < 5] = 0
-        self._ref_onset_strength_envelop[self._ref_onset_strength_envelop < 5] = 0
+        self._rec_onset_strength_envelop[self._rec_onset_strength_envelop < 10] = 0
+        self._ref_onset_strength_envelop[self._ref_onset_strength_envelop < 10] = 0
 
         # Get the hitting timings from the onset strength envelop
         self._rec_hitting_timings = librosa.onset.onset_detect(onset_envelope=self._rec_onset_strength_envelop, sr=self.sr, units='time', normalize=True)
@@ -50,6 +58,9 @@ class RecRefRewardFunction:
 
         self._rec_hitting_frames = (self._rec_hitting_timings * self.sr).astype(int)
         self._ref_hitting_frames = (self._ref_hitting_timings * self.sr).astype(int)
+
+        print(f"hitting frames reference {self._ref_hitting_frames}")
+        print(f"hitting frames recorded {self._rec_hitting_frames}")
 
 
     def amplitude_reward(self, amp_scale=1e2):

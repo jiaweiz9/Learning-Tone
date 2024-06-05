@@ -19,7 +19,7 @@ class PsyonicThumbEnv(gym.Env):
         super().__init__()
         self.config = config
         # action space: 0 := -10, 1 := no change, 2 := +10
-        self.action_space = gym.spaces.Discrete(3)
+        self.action_space = gym.spaces.Discrete(5)
 
         self.observation_space = gym.spaces.Dict({
             'time_embedding': gym.spaces.Box(low=-1, high=1, shape=(2,)),
@@ -30,9 +30,11 @@ class PsyonicThumbEnv(gym.Env):
         #self.target = np.random.uniform(-1, 1, (5,))
 
         self._action_to_joint_movement = {
-            0: -10,
-            1: 0,
-            2: 10
+            0: -15,
+            1: -10,
+            2: 0,
+            3: 10,
+            4: 15,
         }
 
         self.initial_joints_state = config["psyonic"]["initial_state"]
@@ -49,6 +51,7 @@ class PsyonicThumbEnv(gym.Env):
         self.sound_recorder = SoundRecorder()
         self.reward = 0
         self.last_rec_audio = None
+        self.move_rew_weight = config["reward_weight"]["movement"]
 
         self.__setup_command_publisher()
         self.__load_reference_audio()
@@ -126,15 +129,21 @@ class PsyonicThumbEnv(gym.Env):
             self.sound_recorder.clear_buffer()
             self.last_rec_audio = audio_data
 
+        observation = self._get_observation()
+
         # Calculate rewards
         # 1. reward for moving thumb joint not too fast
-        reward = -1 if abs(self.current_thumb_joint - self.previous_thumb_joint) > 10 else 0
+        reward = -self.move_rew_weight if abs(self.current_thumb_joint - (self.previous_thumb_joint)) > 10 else 0
+
         # 2. reward for playing the xylophone based on the recorded audio and the reference audio (only added at the end of the episode)
         if terminated:
             reward += self.__episode_end_reward()
-            
-        observation = self._get_observation()
-        print(f"Step: {self.time_step}, Reward: {reward}", "Observation: ", observation)
+            reward += 1 if self.current_thumb_joint + 10 >= -10 else 0
+            print(f"current episode hitting times reward: {self.last_hitting_times_reward}")
+            print(f"current episode hitting timing reward: {self.last_hitting_timing_reward}")
+            print(f"current episode onset shape reward: {self.last_onset_shape_reward}")
+            print(f"current episode amplitude reward: {self.last_amplitude_reward}")
+        # print(f"\rStep: {self.time_step}, Reward: {reward}, Observation: {observation}", end="")
 
         return observation, reward, terminated, False, {}
 
