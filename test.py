@@ -5,55 +5,49 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor, VecNormali
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.utils import set_random_seed
+import os
 
-#TODO: Add VecNormalized environment saving process
 class TestPPO:
     def __init__(self, config) -> None:
         self.env_id = config["env_id"]
         self.policy = config["policy"]
         
         self.load_model_path = config.get("load_model_path", None)
-        self.epi_length = config["epi_length"]
+        
+        folder_path, model_file = os.path.split(self.load_model_path)
+        model_name = os.path.splitext(model_file)[0]
+        prefix, num_timesteps, _ = model_name.split("_")
+        self.load_env_path = os.path.join(folder_path, f"{prefix}_vecnormalize_{num_timesteps}_steps.pkl")
 
+        self.epi_length = config["epi_length"]
         self.dummy_vec_env = make_vec_env(
             self.env_id, 
             n_envs=1, 
             seed=0, 
             wrapper_class=gym.wrappers.FlattenObservation, 
             env_kwargs={"config": config},
-            # monitor_kwargs={
-            #     "stats_window_size": 100
-            #     }
-            )
-        
-        self.dummy_vec_env = VecNormalize(
-            self.dummy_vec_env, 
-            norm_obs=True, 
-            norm_reward=False, # No need to normalize reward when testing
-            clip_obs=10.
             )
         
         self.__load_env()
         self.__load_model()
         
     def __load_env(self):
-        self.dummy_vec_env.load("vec_normalize.pkl")
-        self.dummy_vec_env.training = False
+        self.normed_vec_env = VecNormalize.load(self.load_env_path, self.dummy_vec_env)
+        self.normed_vec_env.training = False
 
 
     def __load_model(self):
         self.model = PPO.load(self.load_model_path)
-        self.model.set_env(self.dummy_vec_env)
+        self.model.set_env(self.normed_vec_env)
 
     def do_predict(self):
-        obs = self.dummy_vec_env.reset()
+        obs = self.normed_vec_env.reset()
         for _ in range(self.epi_length):
             action, _ = self.model.predict(obs)
-            obs, reward, done, info = self.dummy_vec_env.step(action)
-            self.dummy_vec_env.render()
+            obs, reward, done, info = self.normed_vec_env.step(action)
             if done:
-                obs = self.dummy_vec_env.reset()
-        self.dummy_vec_env.close()
+                obs = self.normed_vec_env.reset()
+        self.normed_vec_env.close()
 
 
 @hydra.main(version_base=None, config_path="psyonic_playing_xylophone/conf/psyonic_thumb", config_name="test")

@@ -30,11 +30,12 @@ class RecRefRewardFunction:
             or isinstance(self.ref_audio, np.ndarray) is False:
             raise ValueError("Reference audio and recorded audio must be numpy arrays, but reference audio is {} and recorded audio is {}".format(type(self.ref_audio), type(self.rec_audio)))
         
-        # self.rec_audio[:]
+        # remove motor noise whose amplitude is around 0.02
         hit_amp_th = 0.02
-        max_amp = np.max(abs(self.rec_audio))
-        if max_amp < hit_amp_th:
+        self.rec_max_amp = np.max(abs(self.rec_audio))
+        if self.rec_max_amp < hit_amp_th:
             self.rec_audio[:] = 1e-5
+        self.ref_max_amp = np.max(abs(self.ref_audio))
         print("ref_audio shape: ", self.ref_audio.shape)
         print("rec_audio shape: ", self.rec_audio.shape)
 
@@ -59,12 +60,13 @@ class RecRefRewardFunction:
         self._rec_hitting_frames = (self._rec_hitting_timings * self.sr).astype(int)
         self._ref_hitting_frames = (self._ref_hitting_timings * self.sr).astype(int)
 
-        print(f"hitting frames reference {self._ref_hitting_frames}")
-        print(f"hitting frames recorded {self._rec_hitting_frames}")
+        # print(f"hitting frames reference {self._ref_hitting_frames}")
+        # print(f"hitting frames recorded {self._rec_hitting_frames}")
 
 
     def amplitude_reward(self, amp_scale=1e2):
-        return 0
+        max_amp_diff = np.abs(self.rec_max_amp - self.ref_max_amp)
+        return np.exp(-max_amp_diff * 10)
 
 
     def hitting_times_reward(self) -> float:
@@ -78,16 +80,22 @@ class RecRefRewardFunction:
 
     # Compute the DTW distance (Dynamic Time Warping) between the onset strength envelops of the recorded and reference audio, serving as a measure of shape similarity
     def onset_shape_reward(self) -> float:
-        dtw_difference, _ = fastdtw(self._rec_onset_strength_envelop, self._ref_onset_strength_envelop)
-        return -dtw_difference
+        rec_audio_8k = librosa.resample(self.rec_audio, orig_sr=self.sr, target_sr=8000)
+        ref_audio_8k = librosa.resample(self.ref_audio, orig_sr=self.sr, target_sr=8000)
+        dtw_difference, _ = fastdtw(rec_audio_8k, ref_audio_8k)
+        # print(dtw_difference)
+        return np.exp(-dtw_difference / 50)
 
 
     def hitting_timing_reward(self) -> float:
+        timing_partition_rec = self._rec_hitting_frames / len(self.rec_audio)
+        timing_partition_ref = self._ref_hitting_frames / len(self.ref_audio)
         # if no hit, return 0
+        print(f"ref hitting: {timing_partition_ref}")
+        print(f"rec hitting: {timing_partition_rec}")
+
         if len(self._rec_hitting_frames) == len(self._ref_hitting_frames):
-            timing_partition_rec = self._rec_hitting_frames / self.sr
-            timing_partition_ref = self._ref_hitting_frames / self.sr
             # time_diff = abs(np.sum(onset_hit_times_ref - onset_hit_times_rec))
             timing_diff = abs(np.sum(timing_partition_rec - timing_partition_ref))
-            return 1 - 11 * timing_diff ** 2 if timing_diff < 0.3 else 0
+            return 1 - 4 * timing_diff ** 2 if timing_diff < 0.5 else 0
         return 0

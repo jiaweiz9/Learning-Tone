@@ -10,6 +10,7 @@ import rospy
 import time, wandb, os
 from psyonic_playing_xylophone.utils.reward_functions import RecRefRewardFunction
 import librosa
+import prettytable as pt
 
 class PsyonicThumbEnv(gym.Env):
 
@@ -96,12 +97,12 @@ class PsyonicThumbEnv(gym.Env):
         self.last_hitting_timing_reward = rec_ref_reward.hitting_timing_reward()
 
         print(f"episode reward computed done!")
-        return (
-            self.config["reward_weight"]["amplitude"] * self.last_amplitude_reward +
-            self.config["reward_weight"]["hitting_times"] * self.last_hitting_times_reward +
-            self.config["reward_weight"]["onset_shape"] * self.last_onset_shape_reward +
-            self.config["reward_weight"]["hitting_timing"] * self.last_hitting_timing_reward 
-        )
+        return {
+            "amplitude": self.last_amplitude_reward,
+            "hitting_times": self.last_hitting_times_reward,
+            "onset_shape": self.last_onset_shape_reward,
+            "hitting_timing": self.last_hitting_timing_reward,
+        }
 
     def step(self, action)-> Tuple[Dict[str, Any], int, bool, bool, dict]:
         self.time_step += 1
@@ -132,17 +133,23 @@ class PsyonicThumbEnv(gym.Env):
         observation = self._get_observation()
 
         # Calculate rewards
-        # 1. reward for moving thumb joint not too fast
-        reward = -self.move_rew_weight if abs(self.current_thumb_joint - (self.previous_thumb_joint)) > 10 else 0
+        # 1. reward for moving thumb not too fast or staying at low
+        reward = -self.move_rew_weight if abs(self.current_thumb_joint - (self.previous_thumb_joint)) > 10 or (self.current_thumb_joint == -50 and self.previous_thumb_joint == -50) else 0
 
-        # 2. reward for playing the xylophone based on the recorded audio and the reference audio (only added at the end of the episode)
         if terminated:
-            reward += self.__episode_end_reward()
-            reward += 1 if self.current_thumb_joint + 10 >= -10 else 0
-            print(f"current episode hitting times reward: {self.last_hitting_times_reward}")
-            print(f"current episode hitting timing reward: {self.last_hitting_timing_reward}")
-            print(f"current episode onset shape reward: {self.last_onset_shape_reward}")
-            print(f"current episode amplitude reward: {self.last_amplitude_reward}")
+            # 2. reward for playing the xylophone based on the recorded audio and the reference audio (only added at the end of the episode)
+            table = pt.PrettyTable()
+            for k, v in self.__episode_end_reward().items():
+                table.add_row([k, v])
+                reward += self.config["reward_weight"][k] * v
+
+            # 3. reward for finger moving back to initial state
+            reward += 10 if self.current_thumb_joint + 10 >= -10 else 0
+            print(table)
+            # print(f"current episode hitting times reward: {self.last_hitting_times_reward}")
+            # print(f"current episode hitting timing reward: {self.last_hitting_timing_reward}")
+            # print(f"current episode onset shape reward: {self.last_onset_shape_reward}")
+            # print(f"current episode amplitude reward: {self.last_amplitude_reward}")
         # print(f"\rStep: {self.time_step}, Reward: {reward}, Observation: {observation}", end="")
 
         return observation, reward, terminated, False, {}

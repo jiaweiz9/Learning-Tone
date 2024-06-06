@@ -51,7 +51,7 @@ class TrainPPO:
             #     }
             )
         
-        self.dummy_vec_env = VecNormalize(
+        self.normed_vec_env = VecNormalize(
             self.dummy_vec_env, 
             norm_obs=True, 
             norm_reward=True, 
@@ -86,7 +86,8 @@ class TrainPPO:
         self.checkpoint_callback = CheckpointCallback(
             save_freq=10000,
             save_path=f"./results/ppo/{self.results_folder_name}",
-            name_prefix='model'
+            name_prefix='model',
+            save_vecnormalize=True,
         )
 
         self.visualize_callback = VisualizeEpisodeCallback(
@@ -117,7 +118,7 @@ class TrainPPO:
             self.model = PPO(
                 policy=self.policy, 
                 n_steps=self.n_steps_per_update, # number of steps to run for each environment per update, 
-                env=self.dummy_vec_env,
+                env=self.normed_vec_env,
                 tensorboard_log=f"./results/tensorboard/{self.results_folder_name}",
                 verbose=1,
                 # stats_window_size=self.n_steps / self.epi_length, # compute rollout statistics over the last iteration
@@ -127,6 +128,8 @@ class TrainPPO:
             folder_path, model_file = os.path.split(self.load_model_path)
             model_name = os.path.splitext(model_file)[0]
             prefix, num_timesteps, _ = model_name.split("_")
+            env_path = os.path.join(folder_path, f"{prefix}_vecnormalize_{num_timesteps}_steps.pkl")
+            self.normed_vec_env = VecNormalize.load(env_path, self.dummy_vec_env)
 
             self.model = PPO.load(self.load_model_path, env=self.dummy_vec_env)
     

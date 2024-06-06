@@ -48,25 +48,25 @@ class VisualizeEpisodeCallback(BaseCallback):
 
 
     def __visualize_audio(self, ref_audio, rec_audio, sr=44100) -> None:
-        # component_type_count = len(rewards_dict)/
-        time = np.arange(0, max(len(rec_audio), len(ref_audio))) / sr
-        ref_audio = np.pad(ref_audio, (0, len(time) - len(ref_audio)))
-        rec_audio = np.pad(rec_audio, (0, len(time) - len(rec_audio)))
-
-        # print("time shape: ", time.shape)
         
-        # Create a figure and two subplots with shared x-axis
-        fig, axs = plt.subplots(2, figsize=(9, 12))
-
+        # Create a figure and two subplots with different x-axis
+        fig, (ax_ref, ax_rec) = plt.subplots(2, 1, figsize=(9, 12))
+        time_ref = np.arange(0, len(ref_audio)) / 44100
+        time_rec = np.arange(0, len(rec_audio)) / 44100
+        
         # Plot the reference audio
-        axs[0].plot(time, ref_audio, color='blue')
-        axs[0].set_title('Reference Audio')
-        axs[0].set_ylabel('Amplitude')
+        
+        ax_ref.plot(time_ref, ref_audio, color='blue')
+        ax_ref.set_title('Reference Audio')
+        ax_ref.set_xlabel('Time (s)')
+        ax_ref.set_ylabel('Amplitude')
 
         # Plot the performed audio
-        axs[1].plot(time, rec_audio, color='orange')
-        axs[1].set_title('Performed Audio')
-        axs[1].set_xlabel('Time (s)')
+        ax_rec.plot(time_rec, rec_audio, color='orange')
+        ax_rec.set_title('Performed Audio')
+        ax_rec.set_xlabel('Time (s)')
+        ax_rec.set_ylabel('Amplitude')
+        plt.tight_layout()
 
         available_colors = ['red', 'purple', 'black', 'pink', 'cyan', 'magenta', 'yellow', ]
         # for i, (component_type, reward_list) in enumerate(rewards_dict.items()):
@@ -85,3 +85,4 @@ class VisualizeEpisodeCallback(BaseCallback):
         file_name = f"episode_{self.num_timesteps}.png"
         img_path = os.path.join(self.figures_path, file_name)
         plt.savefig(img_path)
+        plt.close(fig)

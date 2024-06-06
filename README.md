@@ -56,6 +56,12 @@ Download NoiseTorch: [text](https://github.com/noisetorch/NoiseTorch) -->
 
 ## Initial Position setup
 ```
+
+// connect pysonic
+rosrun rosserial_python serial_node.py /dev/ttyACM0 _baud:=4000000
+
+
+
 rostopic pub robot1/psyonic_controller std_msgs/Float32MultiArray "layout:
   dim:
   - label: ''

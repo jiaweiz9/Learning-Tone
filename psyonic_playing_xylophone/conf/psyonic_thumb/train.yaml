@@ -14,8 +14,8 @@ psyonic:
     min_degree: -50
 
 reward_weight:
-    movement: 0.1
-    amplitude: 0
+    movement: 0.5
+    amplitude: 10
     hitting_times: 10
-    onset_shape: 0
-    hitting_timing: 20
+    onset_shape: 10
+    hitting_timing: 50
