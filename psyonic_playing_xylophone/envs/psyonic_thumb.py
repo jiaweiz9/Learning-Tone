@@ -167,6 +167,7 @@ class PsyonicThumbEnv(gym.Env):
 
         self.previous_thumb_joint = self.current_thumb_joint
         # self.target = np.random.uniform(-1, 1, (5,))
+        print(self._get_observation())
         return self._get_observation(), {}
 
 

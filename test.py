@@ -6,6 +6,7 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.utils import set_random_seed
 import os
+from psyonic_playing_xylophone.envs.psyonic_thumb import PsyonicThumbEnv
 
 class TestPPO:
     def __init__(self, config) -> None:
@@ -13,6 +14,7 @@ class TestPPO:
         self.policy = config["policy"]
         
         self.load_model_path = config.get("load_model_path", None)
+        self.use_vecnorm = config.get("use_vecnorm", False)
         
         folder_path, model_file = os.path.split(self.load_model_path)
         model_name = os.path.splitext(model_file)[0]
@@ -32,8 +34,11 @@ class TestPPO:
         self.__load_model()
         
     def __load_env(self):
-        self.normed_vec_env = VecNormalize.load(self.load_env_path, self.dummy_vec_env)
-        self.normed_vec_env.training = False
+        if self.use_vecnorm:
+            self.normed_vec_env = VecNormalize.load(self.load_env_path, self.dummy_vec_env)
+            self.normed_vec_env.training = False
+        else:
+            self.normed_vec_env = self.dummy_vec_env
 
 
     def __load_model(self):
@@ -42,11 +47,13 @@ class TestPPO:
 
     def do_predict(self):
         obs = self.normed_vec_env.reset()
+        print(f"init obs {obs}")
         for _ in range(self.epi_length):
-            action, _ = self.model.predict(obs)
+            action, _ = self.model.predict(obs, deterministic=True)
             obs, reward, done, info = self.normed_vec_env.step(action)
             if done:
                 obs = self.normed_vec_env.reset()
+                break
         self.normed_vec_env.close()
 
 

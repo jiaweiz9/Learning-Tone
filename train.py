@@ -8,7 +8,7 @@ import wandb
 from wandb.integration.sb3 import WandbCallback
 from datetime import datetime
 from stable_baselines3.common.env_checker import check_env
-from stable_baselines3.common.callbacks import CheckpointCallback
+from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor, VecNormalize
 from stable_baselines3.common.env_util import make_vec_env
@@ -36,51 +36,40 @@ class TrainPPO:
         self.load_model_path = config.get("load_model_path", None)
         self.n_steps_per_update = config["n_steps_per_update"]
         self.epi_length = config["epi_length"]
+        self.no_wandb = config.get("no_wandb", False)
+        self.wandb_run_id = config.get("wandb_run_id", None)
 
         # self.env = gym.make(self.env_id, config = config)
         # self.env = gym.wrappers.FlattenObservation(self.env)
         # self.dummy_vec_env = DummyVecEnv([make_env(self.env_id, config)])
-        self.dummy_vec_env = make_vec_env(
-            self.env_id, 
-            n_envs=1, 
-            seed=0, 
-            wrapper_class=gym.wrappers.FlattenObservation, 
-            env_kwargs={"config": config},
-            # monitor_kwargs={
-            #     "stats_window_size": 100
-            #     }
-            )
-        
-        self.normed_vec_env = VecNormalize(
-            self.dummy_vec_env, 
-            norm_obs=True, 
-            norm_reward=True, 
-            clip_obs=10.
-            )
+        self.normed_vec_env = self._make_normed_vec_env(config)
+        self.eval_vec_env = self._make_normed_vec_env(config)
 
         # Prepare the environment for training
         # check_env(self.env)
 
         # Initialize Wandb
-        self.wandb_run = wandb.init(
-            project="Psyonic_Playing_Xylophone-sb3",
-            config=config,
-            sync_tensorboard=True,
-            group="thumb_sb3",
-            tags=["ppo"],
-            resume="allow",
-            id=config.get("wandb_run_id", None) # Note: We can continue the logging in wandb, but cannot do the same in other results logging (tensorboard, figures, models, etc.)
-        )
-        self.results_folder_name = f"{datetime.now().strftime('%m%d_%H%M')}-{self.wandb_run.id}"
+        if not self.no_wandb:
+            self.wandb_run = wandb.init(
+                project="Psyonic_Playing_Xylophone-sb3",
+                config=config,
+                sync_tensorboard=True,
+                group="thumb_sb3",
+                tags=["ppo"],
+                resume="allow",
+                id=self.wandb_run_id # Note: We can continue the logging in wandb, but cannot do the same in other results logging (tensorboard, figures, models, etc.)
+            )
 
-        # Set up WandbCallback to load training progress to wandb
-        self.wandb_callback = WandbCallback(
-            # gradient_save_freq=1000,
-            # model_save_freq=10000,
-            # model_save_path=f"./results/ppo/{self.results_folder_name}",
-            verbose=1,
-            # log="parameters",
-        )
+            # Set up WandbCallback to load training progress to wandb
+            self.wandb_callback = WandbCallback(
+                # gradient_save_freq=1000,
+                # model_save_freq=10000,
+                # model_save_path=f"./results/ppo/{self.results_folder_name}",
+                verbose=1,
+                # log="parameters",
+            )
+
+        self.results_folder_name = f"{datetime.now().strftime('%m%d_%H%M')}-{self.wandb_run.id}" if not self.no_wandb else f"{datetime.now().strftime('%m%d_%H%M')}-{self.wandb_run_id}"
 
         # Set up checkpoint callback to save model
         self.checkpoint_callback = CheckpointCallback(
@@ -93,20 +82,60 @@ class TrainPPO:
         self.visualize_callback = VisualizeEpisodeCallback(
             figures_path=f"./results/figures/{ self.results_folder_name}"
         )
+
+        self.eval_callback = EvalCallback(
+            eval_env=self.eval_vec_env,
+            best_model_save_path=f"./result/eval/{self.results_folder_name}",
+            eval_freq=config["eval_freq"],
+            deterministic=True,
+            render=False,
+        )
+        
         self.__load_model()
 
+    def _make_normed_vec_env(self, config):
+        dummy_vec_env = make_vec_env(
+            self.env_id, 
+            n_envs=1, 
+            seed=0, 
+            wrapper_class=gym.wrappers.FlattenObservation, 
+            env_kwargs={"config": config},
+            # monitor_kwargs={
+            #     "stats_window_size": 100
+            #     }
+            )
+        
+        normed_vec_env = VecNormalize(
+            dummy_vec_env, 
+            norm_obs=True, 
+            norm_reward=True, 
+            clip_obs=10.
+            )
+        return normed_vec_env
       
     def train(self):
-        self.model.learn(
-            total_timesteps=self.total_timesteps,
-            callback=[
-                self.checkpoint_callback, 
-                self.wandb_callback, 
-                self.visualize_callback
-            ],
-        )
+        if not self.no_wandb:
+            self.model.learn(
+                total_timesteps=self.total_timesteps,
+                callback=[
+                    self.checkpoint_callback, 
+                    self.wandb_callback, 
+                    self.visualize_callback,
+                    self.eval_callback,
+                ],
+            )
+        else:
+            self.model.learn(
+                total_timesteps=self.total_timesteps,
+                callback=[
+                    self.checkpoint_callback,
+                    self.visualize_callback,
+                    self.eval_callback,
+                ],
+            )
 
-        wandb.finish()
+        if not self.no_wandb:
+            wandb.finish() 
     
     # def save_model(self, path: str = None):
     #     if path is None:
@@ -131,7 +160,7 @@ class TrainPPO:
             env_path = os.path.join(folder_path, f"{prefix}_vecnormalize_{num_timesteps}_steps.pkl")
             self.normed_vec_env = VecNormalize.load(env_path, self.dummy_vec_env)
 
-            self.model = PPO.load(self.load_model_path, env=self.dummy_vec_env)
+            self.model = PPO.load(self.load_model_path, env=self.normed_vec_env)
     
 
 
