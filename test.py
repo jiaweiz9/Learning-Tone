@@ -37,6 +37,8 @@ class TestPPO:
         if self.use_vecnorm:
             self.normed_vec_env = VecNormalize.load(self.load_env_path, self.dummy_vec_env)
             self.normed_vec_env.training = False
+            print(f"obs rms: mean {self.normed_vec_env.obs_rms.mean}, var {self.normed_vec_env.obs_rms.var}")
+            print(f"ret rms: mean {self.normed_vec_env.ret_rms.mean}, var {self.normed_vec_env.ret_rms.var}")
         else:
             self.normed_vec_env = self.dummy_vec_env
 
@@ -63,7 +65,7 @@ def launch_test(cfg: DictConfig) -> None:
     cfg = OmegaConf.to_container(cfg, resolve=True)
     test_ppo = TestPPO(cfg)
 
-    test_ppo.do_predict()
+    # test_ppo.do_predict()
 
 if __name__ == "__main__":
     launch_test()

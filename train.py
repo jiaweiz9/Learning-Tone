@@ -42,7 +42,7 @@ class TrainPPO:
         # self.env = gym.make(self.env_id, config = config)
         # self.env = gym.wrappers.FlattenObservation(self.env)
         # self.dummy_vec_env = DummyVecEnv([make_env(self.env_id, config)])
-        self.normed_vec_env = self._make_normed_vec_env(config)
+        self.train_vec_env = self._make_normed_vec_env(config)
         self.eval_vec_env = self._make_normed_vec_env(config)
 
         # Prepare the environment for training
@@ -85,6 +85,7 @@ class TrainPPO:
 
         self.eval_callback = EvalCallback(
             eval_env=self.eval_vec_env,
+            n_eval_episodes=1,
             best_model_save_path=f"./result/eval/{self.results_folder_name}",
             eval_freq=config["eval_freq"],
             deterministic=True,
@@ -99,19 +100,22 @@ class TrainPPO:
             n_envs=1, 
             seed=0, 
             wrapper_class=gym.wrappers.FlattenObservation, 
-            env_kwargs={"config": config},
+            env_kwargs={
+                "config": config,
+                "render_mode": None,
+                },
             # monitor_kwargs={
             #     "stats_window_size": 100
             #     }
             )
         
-        normed_vec_env = VecNormalize(
-            dummy_vec_env, 
-            norm_obs=True, 
-            norm_reward=True, 
-            clip_obs=10.
-            )
-        return normed_vec_env
+        # normed_vec_env = VecNormalize(
+        #     dummy_vec_env, 
+        #     norm_obs=True, 
+        #     norm_reward=True, 
+        #     clip_obs=10.
+        #     )
+        return dummy_vec_env
       
     def train(self):
         if not self.no_wandb:
@@ -147,7 +151,7 @@ class TrainPPO:
             self.model = PPO(
                 policy=self.policy, 
                 n_steps=self.n_steps_per_update, # number of steps to run for each environment per update, 
-                env=self.normed_vec_env,
+                env=self.train_vec_env,
                 tensorboard_log=f"./results/tensorboard/{self.results_folder_name}",
                 verbose=1,
                 # stats_window_size=self.n_steps / self.epi_length, # compute rollout statistics over the last iteration
@@ -158,9 +162,9 @@ class TrainPPO:
             model_name = os.path.splitext(model_file)[0]
             prefix, num_timesteps, _ = model_name.split("_")
             env_path = os.path.join(folder_path, f"{prefix}_vecnormalize_{num_timesteps}_steps.pkl")
-            self.normed_vec_env = VecNormalize.load(env_path, self.dummy_vec_env)
+            # self.normed_vec_env = VecNormalize.load(env_path, self.dummy_vec_env)
 
-            self.model = PPO.load(self.load_model_path, env=self.normed_vec_env)
+            self.model = PPO.load(self.load_model_path, env=self.train_vec_env)
     
 
 

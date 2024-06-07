@@ -16,7 +16,7 @@ class PsyonicThumbEnv(gym.Env):
 
     metadata = {"render_modes": [None]}
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Dict[str, Any], render_mode=None):
         super().__init__()
         self.config = config
         # action space: 0 := -10, 1 := no change, 2 := +10
@@ -24,8 +24,8 @@ class PsyonicThumbEnv(gym.Env):
 
         self.observation_space = gym.spaces.Dict({
             'time_embedding': gym.spaces.Box(low=-1, high=1, shape=(2,)),
-            'current_thumb_joint': gym.spaces.Box(low=-50, high=-10, shape=(1,)),
-            'previous_thumb_joint': gym.spaces.Box(low=-50, high=-10, shape=(1,))
+            'current_thumb_joint': gym.spaces.Box(low=-1, high=-1, shape=(1,)),
+            'previous_thumb_joint': gym.spaces.Box(low=-1, high=-1, shape=(1,))
         })
         #self.state = np.zeros(5)
         #self.target = np.random.uniform(-1, 1, (5,))
@@ -47,8 +47,8 @@ class PsyonicThumbEnv(gym.Env):
         # self.ref_audio_path = config["reference_audio"]
 
         self.time_step = 0
-        self.current_thumb_joint = 0
-        self.previous_thumb_joint = 0
+        self.current_thumb_joint = self.initial_joints_state[-1]
+        self.previous_thumb_joint = self.initial_joints_state[-1]
         self.sound_recorder = SoundRecorder()
         self.reward = 0
         self.last_rec_audio = None
@@ -60,12 +60,15 @@ class PsyonicThumbEnv(gym.Env):
     def __time_step_embedding(self) -> ArrayLike:
         return np.array([np.sin(self.time_step), 
                          np.cos(self.time_step)])
+    
+    def __norm_obs(self, joint):
+        return (joint + 30) / -20
 
     def _get_observation(self):
         return {
             'time_embedding': self.__time_step_embedding(),
-            'current_thumb_joint': self.current_thumb_joint,
-            'previous_thumb_joint': self.previous_thumb_joint
+            'current_thumb_joint': self.__norm_obs(self.current_thumb_joint),
+            'previous_thumb_joint': self.__norm_obs(self.previous_thumb_joint)
         }
     
     def __load_reference_audio(self):
@@ -134,7 +137,7 @@ class PsyonicThumbEnv(gym.Env):
 
         # Calculate rewards
         # 1. reward for moving thumb not too fast or staying at low
-        reward = -self.move_rew_weight if abs(self.current_thumb_joint - (self.previous_thumb_joint)) > 10 or (self.current_thumb_joint == -50 and self.previous_thumb_joint == -50) else 0
+        reward = -self.move_rew_weight if (self.current_thumb_joint == -50 and self.previous_thumb_joint == -50) or (self.current_thumb_joint != -50 and self.current_thumb_joint != self.previous_thumb_joint) else 0
 
         if terminated:
             # 2. reward for playing the xylophone based on the recorded audio and the reference audio (only added at the end of the episode)
@@ -144,7 +147,7 @@ class PsyonicThumbEnv(gym.Env):
                 reward += self.config["reward_weight"][k] * v
 
             # 3. reward for finger moving back to initial state
-            reward += 10 if self.current_thumb_joint + 10 >= -10 else 0
+            reward += 10 if self.current_thumb_joint >= self.initial_joints_state[-1] else 0
             print(table)
             # print(f"current episode hitting times reward: {self.last_hitting_times_reward}")
             # print(f"current episode hitting timing reward: {self.last_hitting_timing_reward}")
@@ -167,7 +170,7 @@ class PsyonicThumbEnv(gym.Env):
 
         self.previous_thumb_joint = self.current_thumb_joint
         # self.target = np.random.uniform(-1, 1, (5,))
-        print(self._get_observation())
+        # print(self._get_observation())
         return self._get_observation(), {}
 
 
