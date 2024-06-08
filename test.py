@@ -45,13 +45,14 @@ class TestPPO:
 
     def __load_model(self):
         self.model = PPO.load(self.load_model_path)
-        self.model.set_env(self.normed_vec_env)
+        self.model.set_env(self.normed_vec_env) 
 
     def do_predict(self):
         obs = self.normed_vec_env.reset()
         print(f"init obs {obs}")
         for _ in range(self.epi_length):
-            action, _ = self.model.predict(obs, deterministic=True)
+            action, _ = self.model.predict(obs, deterministic=False)
+            print(action)
             obs, reward, done, info = self.normed_vec_env.step(action)
             if done:
                 obs = self.normed_vec_env.reset()
@@ -65,7 +66,7 @@ def launch_test(cfg: DictConfig) -> None:
     cfg = OmegaConf.to_container(cfg, resolve=True)
     test_ppo = TestPPO(cfg)
 
-    # test_ppo.do_predict()
+    test_ppo.do_predict()
 
 if __name__ == "__main__":
     launch_test()

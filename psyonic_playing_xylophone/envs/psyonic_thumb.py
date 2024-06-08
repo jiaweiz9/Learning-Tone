@@ -120,7 +120,13 @@ class PsyonicThumbEnv(gym.Env):
         self.current_thumb_joint = np.clip(self.current_thumb_joint,
                                            self.min_degree, 
                                            self.max_degree)
-
+        print(
+            "time step", self.time_step,
+            "cur action", action,
+            "cur joint movement", self._action_to_joint_movement[action],
+            "prev thumb joint: ", self.previous_thumb_joint,
+            "next thumb joint: ", self.current_thumb_joint
+            )
         next_movement = self.get_state()
         self.qpos_publisher.publish_once(next_movement)
 
@@ -175,7 +181,7 @@ class PsyonicThumbEnv(gym.Env):
 
 
     def get_state(self) -> ArrayLike:
-        # using previous command as joint state (Note: this is not the actual joint state)
+        # using current command as joint state (Note: this is not the actual joint state)
         return np.concatenate([self.initial_joints_state[:-1],
                                [self.current_thumb_joint]],
                                axis=0)
