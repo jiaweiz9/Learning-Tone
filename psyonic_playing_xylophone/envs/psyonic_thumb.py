@@ -23,7 +23,7 @@ class PsyonicThumbEnv(gym.Env):
         self.action_space = gym.spaces.Discrete(5)
 
         self.observation_space = gym.spaces.Dict({
-            'time_embedding': gym.spaces.Box(low=-1, high=1, shape=(2,)),
+            # 'time_embedding': gym.spaces.Box(low=-1, high=1, shape=(2,)),
             'current_thumb_joint': gym.spaces.Box(low=-1, high=-1, shape=(1,)),
             'previous_thumb_joint': gym.spaces.Box(low=-1, high=-1, shape=(1,))
         })
@@ -66,9 +66,9 @@ class PsyonicThumbEnv(gym.Env):
 
     def _get_observation(self):
         return {
-            'time_embedding': self.__time_step_embedding(),
-            'current_thumb_joint': self.__norm_obs(self.current_thumb_joint),
-            'previous_thumb_joint': self.__norm_obs(self.previous_thumb_joint)
+            # 'time_embedding': self.__time_step_embedding(),
+            'current_thumb_joint': self.__norm_obs(self.current_thumb_joint) + self.__time_step_embedding()[0],
+            'previous_thumb_joint': self.__norm_obs(self.previous_thumb_joint) + self.__time_step_embedding()[1],
         }
     
     def __load_reference_audio(self):
