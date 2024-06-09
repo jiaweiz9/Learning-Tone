@@ -70,12 +70,13 @@ class RecRefRewardFunction:
 
 
     def hitting_times_reward(self) -> float:
-        # if no hit, return -10
-        if len(self._rec_hitting_timings) == 0:
-            return -10
-        # the returned difference will not be smaller than -20
-        else:
-            return -min(abs(len(self._rec_hitting_timings) - len(self._ref_hitting_timings)), 20)
+        # # if no hit, return -10
+        # if len(self._rec_hitting_timings) == 0:
+        #     return -10
+        # # the returned difference will not be smaller than -20
+        # else:
+        #     return -min(abs(len(self._rec_hitting_timings) - len(self._ref_hitting_timings)), 20)
+        return -min(abs(len(self._rec_hitting_timings) - len(self._ref_hitting_timings)), 20)
         
 
     # Compute the DTW distance (Dynamic Time Warping) between the onset strength envelops of the recorded and reference audio, serving as a measure of shape similarity

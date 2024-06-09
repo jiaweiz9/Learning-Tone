@@ -112,6 +112,7 @@ class PsyonicThumbEnv(gym.Env):
 
         if self.time_step == 1:
             self.sound_recorder.start_recording()
+            time.sleep(0.1)
 
         self.previous_thumb_joint = self.current_thumb_joint
         self.current_thumb_joint += self._action_to_joint_movement[action]
@@ -120,20 +121,22 @@ class PsyonicThumbEnv(gym.Env):
         self.current_thumb_joint = np.clip(self.current_thumb_joint,
                                            self.min_degree, 
                                            self.max_degree)
-        print(
-            "time step", self.time_step,
-            "cur action", action,
-            "cur joint movement", self._action_to_joint_movement[action],
-            "prev thumb joint: ", self.previous_thumb_joint,
-            "next thumb joint: ", self.current_thumb_joint
-            )
+        # print(
+        #     "time step", self.time_step,
+        #     "cur action", action,
+        #     "cur joint movement", self._action_to_joint_movement[action],
+        #     "prev thumb joint: ", self.previous_thumb_joint,
+        #     "next thumb joint: ", self.current_thumb_joint
+        #     )
         next_movement = self.get_state()
         self.qpos_publisher.publish_once(next_movement)
+        curr_step_rec_audio = self.sound_recorder.get_last_step_audio()
+        curr_step_ref_audio = self.ref_audio[(self.time_step - 1) * 882 : self.time_step * 882]
 
         terminated = True if self.time_step >= self.config["epi_length"] else False
         if terminated:
             self.sound_recorder.stop_recording()
-            audio_data = self.sound_recorder.get_current_buffer().squeeze()
+            audio_data = self.sound_recorder.get_episode_audio().squeeze()[4410:]
             #self.sound_recorder.save_recording()
             print(f"Current episode data length: {audio_data.shape}")
             self.sound_recorder.clear_buffer()
@@ -143,7 +146,7 @@ class PsyonicThumbEnv(gym.Env):
 
         # Calculate rewards
         # 1. reward for moving thumb not too fast or staying at low
-        reward = -self.move_rew_weight if (self.current_thumb_joint == -50 and self.previous_thumb_joint == -50) or (self.current_thumb_joint != -50 and self.current_thumb_joint != self.previous_thumb_joint) else 0
+        reward = -self.move_rew_weight * abs(np.mean(np.abs(curr_step_rec_audio)) - np.mean(np.abs(curr_step_ref_audio))) * 3
 
         if terminated:
             # 2. reward for playing the xylophone based on the recorded audio and the reference audio (only added at the end of the episode)

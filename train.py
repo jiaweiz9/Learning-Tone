@@ -32,6 +32,7 @@ class TrainPPO:
         self.env_id = config["env_id"]
         self.policy = config["policy"]
         self.total_timesteps = config["total_timesteps"]
+        self.n_epochs = config["n_epochs"]
         # self.reset_num_timesteps = config["reset_num_timesteps"]
         self.load_model_path = config.get("load_model_path", None)
         self.n_steps_per_update = config["n_steps_per_update"]
@@ -151,7 +152,9 @@ class TrainPPO:
             self.model = PPO(
                 policy=self.policy, 
                 n_steps=self.n_steps_per_update, # number of steps to run for each environment per update, 
+                learning_rate=0.003,
                 env=self.train_vec_env,
+                n_epochs=self.n_epochs,
                 tensorboard_log=f"./results/tensorboard/{self.results_folder_name}",
                 verbose=1,
                 # stats_window_size=self.n_steps / self.epi_length, # compute rollout statistics over the last iteration

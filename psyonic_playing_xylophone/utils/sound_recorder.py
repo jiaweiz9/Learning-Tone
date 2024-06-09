@@ -58,6 +58,7 @@ class SoundRecorder():
     def clear_buffer(self):
         assert self.is_recording == False
         self.recording_list = []
+        self.audio_buffer = np.array([])
         while not self.q.empty():
             self.q.get()
         assert self.q.empty() == True
