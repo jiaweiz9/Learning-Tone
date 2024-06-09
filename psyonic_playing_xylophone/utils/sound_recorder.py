@@ -15,6 +15,7 @@ class SoundRecorder():
         self.recording_thread = None
         self.lock = threading.Lock()
         self.audio_idx = audio_device
+        self.audio_buffer = np.array([])
 
     def start_recording(self):
         if not self.is_recording:
@@ -37,8 +38,15 @@ class SoundRecorder():
                     print("Audio buffer overflowed! Some audio might be lost.")
                 
                 # self.recording_list.append(audio_chunk)
-                self.q.put(audio_chunk)
+                # self.q.put(audio_chunk)
+                self.audio_buffer = np.append(self.audio_buffer, audio_chunk)
         print("Recording stopped!")
+
+    def get_last_step_audio(self):
+        return self.audio_buffer[-882:]
+    
+    def get_episode_audio(self):
+        return self.audio_buffer[:]
 
     def stop_recording(self):
         # Stops the ongoing audio recording.
@@ -83,6 +91,9 @@ class SoundRecorder():
         self.stream = sd.InputStream(samplerate = self.sample_rate, channels = 1, dtype='float32', 
                                      device = self.audio_idx, callback = self.record_callback)
         
+
+
+
 class OldSoundRecorder():
     def __init__(self, samplerate=44100, audio_device=None):
         self.stream = None
@@ -103,7 +114,7 @@ class OldSoundRecorder():
             print("Already recording!")
 
     def _record_audio(self):
-        chunk_size = 882  # 20ms
+        chunk_size = 441  # 20ms
         with sd.InputStream(samplerate=self.sample_rate, channels=1, dtype='float32', device=self.audio_idx) as stream:
             print('Starting recording...')
             while self.is_recording:
@@ -134,10 +145,16 @@ class OldSoundRecorder():
 if __name__ == "__main__":
     sound_recorder = SoundRecorder()
     sound_recorder.start_recording()
-
-    time.sleep(5)
-
-    data = sound_recorder.get_current_buffer()
-    print(data)
+    # time.sleep(0.1)
+    # time.sleep(5)
+    # data = sound_recorder.get_current_buffer()
+    # print(len(data)//882)
+    for i in range(10):
+        time.sleep(0.022)
+        data = sound_recorder.get_last_step_audio()
+        print(len(data))
     sound_recorder.stop_recording()
+
+    data = sound_recorder.get_episode_audio()
+    print(len(data)//882)
     sound_recorder.clear_buffer()
