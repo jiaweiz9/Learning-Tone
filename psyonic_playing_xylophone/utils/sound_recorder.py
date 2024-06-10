@@ -43,7 +43,10 @@ class SoundRecorder():
         print("Recording stopped!")
 
     def get_last_step_audio(self):
-        return self.audio_buffer[-882:]
+        '''
+        Returns the last 20ms audio chunk and the index of the chunk in the episode.
+        '''
+        return self.audio_buffer[-882:], len(self.audio_buffer)//882 - 1
     
     def get_episode_audio(self):
         return self.audio_buffer[:]
@@ -146,16 +149,20 @@ class OldSoundRecorder():
 if __name__ == "__main__":
     sound_recorder = SoundRecorder()
     sound_recorder.start_recording()
-    # time.sleep(0.1)
+    time.sleep(0.1)
     # time.sleep(5)
     # data = sound_recorder.get_current_buffer()
     # print(len(data)//882)
-    for i in range(10):
-        time.sleep(0.022)
-        data = sound_recorder.get_last_step_audio()
-        print(len(data))
+    index_list = []
+
+    for i in range(100):
+        time.sleep(0.025)
+        data, index = sound_recorder.get_last_step_audio()
+        print(len(data), " ", index)
+        index_list.append(index - 5)
     sound_recorder.stop_recording()
 
     data = sound_recorder.get_episode_audio()
-    print(len(data)//882)
+    print(len(data[4410:])//882)
+    print(index_list)
     sound_recorder.clear_buffer()

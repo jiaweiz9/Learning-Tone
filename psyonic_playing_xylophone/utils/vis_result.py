@@ -47,42 +47,24 @@ class VisualizeEpisodeCallback(BaseCallback):
         return super()._on_rollout_end()
 
 
-    def __visualize_audio(self, ref_audio, rec_audio, sr=44100) -> None:
+    def __visualize_audio(self, ref_audio, rec_audio, rec_idx, sr=44100) -> None:
         
-        # Create a figure and two subplots with different x-axis
-        fig, (ax_ref, ax_rec) = plt.subplots(2, 1, figsize=(9, 12))
-        time_ref = np.arange(0, len(ref_audio)) / 44100
-        time_rec = np.arange(0, len(rec_audio)) / 44100
-        
-        # Plot the reference audio
-        
-        ax_ref.plot(time_ref, ref_audio, color='blue')
-        ax_ref.set_title('Reference Audio')
-        ax_ref.set_xlabel('Time (s)')
-        ax_ref.set_ylabel('Amplitude')
+        plt.figure()
+        time = np.arange(0, len(rec_audio)) / 44100
+        plt.plot(time, rec_audio, color='blue', alpha=0.3)
 
-        # Plot the performed audio
-        ax_rec.plot(time_rec, rec_audio, color='orange')
-        ax_rec.set_title('Performed Audio')
-        ax_rec.set_xlabel('Time (s)')
-        ax_rec.set_ylabel('Amplitude')
-        plt.tight_layout()
+        ref_audio = np.pad(ref_audio, (0, len(rec_audio) - len(ref_audio)), 'constant')
+        plt.plot(time, ref_audio, color='red', alpha=0.3)
 
-        available_colors = ['red', 'purple', 'black', 'pink', 'cyan', 'magenta', 'yellow', ]
-        # for i, (component_type, reward_list) in enumerate(rewards_dict.items()):
-        #     if not isinstance(reward_list, np.ndarray):
-        #         point_x = epi_length - 1
-        #         point_y = reward_list
-        #         axs[2].scatter(point_x, point_y, color=available_colors[i], label=component_type)
-        #         continue
+        rec_idx = rec_idx * 0.02
+        plt.scatter(rec_idx, np.zeros_like(rec_idx), color='black', marker='x')
 
-        #     elif len(reward_list) != epi_length:
-        #         reward_list = np.pad(reward_list, (0, epi_length - len(reward_list)))
-        #     axs[2].plot(range(epi_length), reward_list, color=available_colors[i], label=component_type, alpha=0.5)
-        #     axs[2].set_title("Reward Components")
-        #     axs[2].set_ylabel('Reward')
-        #     axs[2].legend()
+        # plt.title(f'Episode {rec_idx} - Reference Audio (red) vs. Recorded Audio (blue)')
+        plt.xlabel('Time (s)')
+        plt.ylabel('Amplitude')
+        plt.legend(['Recorded Audio', 'Reference Audio'])
+
         file_name = f"episode_{self.num_timesteps}.png"
         img_path = os.path.join(self.figures_path, file_name)
         plt.savefig(img_path)
-        plt.close(fig)
+        plt.close()
