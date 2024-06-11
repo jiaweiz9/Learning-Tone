@@ -16,6 +16,7 @@ class SoundRecorder():
         self.lock = threading.Lock()
         self.audio_idx = audio_device
         self.audio_buffer = np.array([])
+        self.first_step_index = 0
 
     def start_recording(self):
         if not self.is_recording:
@@ -46,7 +47,9 @@ class SoundRecorder():
         '''
         Returns the last 20ms audio chunk and the index of the chunk in the episode.
         '''
-        return self.audio_buffer[-882:], len(self.audio_buffer)//882 - 1
+        if self.first_step_index == 0:
+            self.first_step_index = len(self.audio_buffer) // 882 - 1
+        return self.audio_buffer[-882:], len(self.audio_buffer)//882 - 1 - self.first_step_index
     
     def get_episode_audio(self):
         return self.audio_buffer[:]
@@ -62,6 +65,7 @@ class SoundRecorder():
         assert self.is_recording == False
         self.recording_list = []
         self.audio_buffer = np.array([])
+        self.first_step_index = 0
         while not self.q.empty():
             self.q.get()
         assert self.q.empty() == True
@@ -159,7 +163,7 @@ if __name__ == "__main__":
         time.sleep(0.025)
         data, index = sound_recorder.get_last_step_audio()
         print(len(data), " ", index)
-        index_list.append(index - 5)
+        index_list.append(index)
     sound_recorder.stop_recording()
 
     data = sound_recorder.get_episode_audio()

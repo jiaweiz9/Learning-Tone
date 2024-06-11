@@ -31,9 +31,12 @@ class VisualizeEpisodeCallback(BaseCallback):
             self.logger.record_mean("amplitude_reward", self.training_env.get_attr("last_amplitude_reward")[0])
 
         if self.num_timesteps % 1000 == 0:
-            last_rec_audio = self.training_env.get_attr("last_rec_audio")[0] # fix: returned value is a list
+            last_rec_audio = self.training_env.get_attr("last_rec_audio")[0] # fix: returned value is a list containing all matched attributes
             ref_audio = self.training_env.get_attr("ref_audio")[0]
-            self.__visualize_audio(ref_audio, last_rec_audio, sr=44100)
+            rec_chunk_idx = self.training_env.get_attr("last_chunk_idx")[0]
+            rec_step_rew = self.training_env.get_attr("step_rewards")[0]
+            # self.__visualize_audio(ref_audio, last_rec_audio, rec_chunk_idx, sr=44100)
+            self.__visualize_audio_step(ref_audio, last_rec_audio, rec_chunk_idx, rec_step_rew)
 
         return True
 
@@ -49,8 +52,8 @@ class VisualizeEpisodeCallback(BaseCallback):
 
     def __visualize_audio(self, ref_audio, rec_audio, rec_idx, sr=44100) -> None:
         
-        plt.figure()
-        time = np.arange(0, len(rec_audio)) / 44100
+        plt.figure(figsize=(20, 6))
+        time = np.arange(0, len(rec_audio)) / sr
         plt.plot(time, rec_audio, color='blue', alpha=0.3)
 
         ref_audio = np.pad(ref_audio, (0, len(rec_audio) - len(ref_audio)), 'constant')
@@ -63,6 +66,30 @@ class VisualizeEpisodeCallback(BaseCallback):
         plt.xlabel('Time (s)')
         plt.ylabel('Amplitude')
         plt.legend(['Recorded Audio', 'Reference Audio'])
+
+        file_name = f"episode_{self.num_timesteps}.png"
+        img_path = os.path.join(self.figures_path, file_name)
+        plt.savefig(img_path)
+        plt.close()
+    
+    def __visualize_audio_step(self, ref_audio, rec_audio, rec_idx, step_rew, sr=44100) -> None:
+        plt.figure(figsize=(20, 6))
+        max_len = max(len(rec_audio), len(ref_audio))
+        ref_audio = np.pad(ref_audio, (0, max_len - len(ref_audio)), 'constant')
+        rec_audio = np.pad(rec_audio, (0, max_len - len(rec_audio)), 'constant')
+
+        time = np.arange(0, max_len) / sr
+
+        plt.plot(time, rec_audio, color='blue', alpha=0.3)
+        plt.plot(time, ref_audio, color='red', alpha=0.3)
+
+        rec_idx = rec_idx * 0.02
+        plt.scatter(rec_idx, step_rew, color='black', marker='x')
+
+        # plt.title(f'Episode {rec_idx} - Reference Audio (red) vs. Recorded Audio (blue)')
+        plt.xlabel('Time (s)')
+        plt.ylabel('Amplitude')
+        plt.legend(['Recorded Audio', 'Reference Audio', 'Step Reward'])
 
         file_name = f"episode_{self.num_timesteps}.png"
         img_path = os.path.join(self.figures_path, file_name)

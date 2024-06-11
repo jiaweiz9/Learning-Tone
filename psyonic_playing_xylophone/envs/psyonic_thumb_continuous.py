@@ -12,7 +12,7 @@ from psyonic_playing_xylophone.utils.reward_functions import RecRefRewardFunctio
 import librosa
 import prettytable as pt
 
-class PsyonicThumbEnv(gym.Env):
+class PsyonicThumbContinuEnv(gym.Env):
 
     metadata = {"render_modes": [None]}
 
@@ -20,7 +20,7 @@ class PsyonicThumbEnv(gym.Env):
         super().__init__()
         self.config = config
         # action space: 0 := -10, 1 := no change, 2 := +10
-        self.action_space = gym.spaces.Discrete(5)
+        self.action_space = gym.spaces.Box(low=-1, high=1, shape=(1,))
 
         self.observation_space = gym.spaces.Dict({
             # 'time_embedding': gym.spaces.Box(low=-1, high=1, shape=(2,)),
@@ -30,14 +30,6 @@ class PsyonicThumbEnv(gym.Env):
         #self.state = np.zeros(5)
         #self.target = np.random.uniform(-1, 1, (5,))
 
-        self._action_to_joint_movement = {
-            0: -15,
-            1: -10,
-            2: 0,
-            3: 10,
-            4: 15,
-        }
-
         self.initial_joints_state = config["psyonic"]["initial_state"]
         if isinstance(self.initial_joints_state, np.ndarray) is False:
             self.initial_joints_state = np.array(self.initial_joints_state)
@@ -45,6 +37,8 @@ class PsyonicThumbEnv(gym.Env):
         self.min_degree = config["psyonic"]["min_degree"]
         self.max_degree = config["psyonic"]["max_degree"]
         # self.ref_audio_path = config["reference_audio"]
+
+        self._action_to_joint_movement = lambda action: 15 * action
 
         self.time_step = 0
         self.current_thumb_joint = self.initial_joints_state[-1]
@@ -55,7 +49,6 @@ class PsyonicThumbEnv(gym.Env):
         self.last_chunk_idx = []
         self.step_rewards = []
         self.move_rew_weight = config["reward_weight"]["movement"]
-        # self.amp_step_rew_weight = config["reward_weight"]["amplitude_step"]
         self.move_distance_curr_epi = 0
 
         self.__setup_command_publisher()
@@ -82,7 +75,6 @@ class PsyonicThumbEnv(gym.Env):
             ref_audio_path = self.config["reference_audio"]
         
         self.ref_audio, sr = librosa.load(ref_audio_path, sr=44100)
-        self.ref_audio = np.pad(self.ref_audio, (0, 132300 - len(self.ref_audio)), 'constant')
     
     def __setup_command_publisher(self):
         rospy.init_node('psyonic_control', anonymous=True)
@@ -103,7 +95,6 @@ class PsyonicThumbEnv(gym.Env):
         self.last_hitting_times_reward = rec_ref_reward.hitting_times_reward()
         self.last_onset_shape_reward = rec_ref_reward.onset_shape_reward()
         self.last_hitting_timing_reward = rec_ref_reward.hitting_timing_reward()
-        self.success_reward = rec_ref_reward.success_reward()
 
         print(f"episode reward computed done!")
         return {
@@ -111,7 +102,6 @@ class PsyonicThumbEnv(gym.Env):
             "hitting_times": self.last_hitting_times_reward,
             "onset_shape": self.last_onset_shape_reward,
             "hitting_timing": self.last_hitting_timing_reward,
-            "success":self.success_reward
         }
 
     def step(self, action)-> Tuple[Dict[str, Any], int, bool, bool, dict]:
@@ -124,7 +114,7 @@ class PsyonicThumbEnv(gym.Env):
             self.step_rewards=[]
 
         self.previous_thumb_joint = self.current_thumb_joint
-        self.current_thumb_joint += self._action_to_joint_movement[action]
+        self.current_thumb_joint += self._action_to_joint_movement(action)
 
         # Clip the thumb joint command to make it within the feasible range
         self.current_thumb_joint = np.clip(self.current_thumb_joint,
@@ -141,7 +131,7 @@ class PsyonicThumbEnv(gym.Env):
         next_movement = self.get_state()
         self.qpos_publisher.publish_once(next_movement)
         curr_step_rec_audio, chunk_index = self.sound_recorder.get_last_step_audio()
-        curr_step_ref_audio = self.ref_audio[chunk_index * 882 : (chunk_index + 1) * 882]
+        curr_step_ref_audio = self.ref_audio[(self.time_step - 1) * 882 : self.time_step * 882]
 
         self.last_chunk_idx.append(chunk_index)
 
@@ -161,29 +151,16 @@ class PsyonicThumbEnv(gym.Env):
         # Calculate rewards
         # 1. reward for moving thumb not too fast or staying at low
         # reward = -self.move_rew_weight * abs(np.mean(np.abs(curr_step_rec_audio)) - np.mean(np.abs(curr_step_ref_audio)))
-        reward = -self.config["reward_weight"]["amplitude_step"] * (np.mean(np.abs(curr_step_rec_audio)) - np.mean(np.abs(curr_step_ref_audio))) ** 2 * 50
-        
-        self.step_rewards.append(reward.copy() / (self.config["reward_weight"]["amplitude_step"]))
-        
-        reward += -abs(self.current_thumb_joint - self.previous_thumb_joint) * self.config["reward_weight"]["movement"]
+        reward = -self.move_rew_weight * (np.mean(np.abs(curr_step_rec_audio)) - np.mean(np.abs(curr_step_ref_audio))) ** 2
+
+        self.step_rewards.append(reward.copy() / (self.move_rew_weight))
 
         if terminated:
             # 2. reward for playing the xylophone based on the recorded audio and the reference audio (only added at the end of the episode)
             table = pt.PrettyTable()
             for k, v in self.__episode_end_reward().items():
-                if k == "success":
-                    success_reward = v
-                    continue
-                elif k == "amplitude":
-                    amplitude_reward = v
-                elif k == "hitting_timing":
-                    timing_reward = v
                 table.add_row([k, v])
-                
                 reward += self.config["reward_weight"][k] * v
-            # success_reward = self.__episode_end_reward()["success"] * self.__episode_end_reward()["amplitude"]
-            # reward += success_reward * amplitude_reward * timing_reward
-            # table.add_row(["success_reward", success_reward])
 
             # 3. reward for finger moving back to initial state
             reward += 10 if self.current_thumb_joint >= self.initial_joints_state[-1] else 0
@@ -247,7 +224,7 @@ if __name__ == "__main__":
         }
     
     # print(os.path.realpath(__file__))
-    env = PsyonicThumbEnv(config=config)
+    env = PsyonicThumbContinuEnv(config=config)
     env = gym.wrappers.FlattenObservation(env)
 
     obs, info = env.reset()

@@ -60,6 +60,9 @@ class RecRefRewardFunction:
         self._rec_hitting_frames = (self._rec_hitting_timings * self.sr).astype(int)
         self._ref_hitting_frames = (self._ref_hitting_timings * self.sr).astype(int)
 
+        # if no hit, return 0
+        print(f"ref hitting: {self._ref_hitting_timings}")
+        print(f"rec hitting: {self._rec_hitting_timings}")
         # print(f"hitting frames reference {self._ref_hitting_frames}")
         # print(f"hitting frames recorded {self._rec_hitting_frames}")
 
@@ -71,12 +74,12 @@ class RecRefRewardFunction:
 
     def hitting_times_reward(self) -> float:
         # # if no hit, return -10
-        # if len(self._rec_hitting_timings) == 0:
-        #     return -10
-        # # the returned difference will not be smaller than -20
-        # else:
-        #     return -min(abs(len(self._rec_hitting_timings) - len(self._ref_hitting_timings)), 20)
-        return -min(abs(len(self._rec_hitting_timings) - len(self._ref_hitting_timings)), 20)
+        if len(self._rec_hitting_timings) == 0:
+            return -5
+        # the returned difference will not be smaller than -20
+        else:
+            return -min(abs(len(self._rec_hitting_timings) - len(self._ref_hitting_timings)), 20)
+        # return -min(abs(len(self._rec_hitting_timings) - len(self._ref_hitting_timings)), 20)
         
 
     # Compute the DTW distance (Dynamic Time Warping) between the onset strength envelops of the recorded and reference audio, serving as a measure of shape similarity
@@ -89,14 +92,19 @@ class RecRefRewardFunction:
 
 
     def hitting_timing_reward(self) -> float:
-        timing_partition_rec = self._rec_hitting_frames / len(self.rec_audio)
-        timing_partition_ref = self._ref_hitting_frames / len(self.ref_audio)
-        # if no hit, return 0
-        print(f"ref hitting: {timing_partition_ref}")
-        print(f"rec hitting: {timing_partition_rec}")
-
         if len(self._rec_hitting_frames) == len(self._ref_hitting_frames):
             # time_diff = abs(np.sum(onset_hit_times_ref - onset_hit_times_rec))
-            timing_diff = abs(np.sum(timing_partition_rec - timing_partition_ref))
-            return 1 - 4 * timing_diff ** 2 if timing_diff < 0.5 else 0
+            timing_diff = abs(np.sum(self._rec_hitting_timings - self._ref_hitting_timings))
+            # return 1 - 4 * timing_diff ** 2 if timing_diff < 0.5 else 0
+            return 1 - timing_diff / 2 if timing_diff / 2 < 1 else 0
         return 0
+    
+    def success_reward(self) -> float:
+        '''
+        Give this reward only when hitting the desired times, with good timing, and shape
+        '''
+        return 100 if (
+            len(self._rec_hitting_timings) == len(self._ref_hitting_timings) and
+            self.onset_shape_reward() > 0.1 and
+            self.hitting_timing_reward() > 0.5
+        ) else 0

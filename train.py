@@ -39,6 +39,9 @@ class TrainPPO:
         self.epi_length = config["epi_length"]
         self.no_wandb = config.get("no_wandb", False)
         self.wandb_run_id = config.get("wandb_run_id", None)
+        self.device = config.get("device", "auto")
+        self.learning_rate = config["learning_rate"]
+        self.ent_coef = config["ent_coef"]
 
         # self.env = gym.make(self.env_id, config = config)
         # self.env = gym.wrappers.FlattenObservation(self.env)
@@ -87,7 +90,7 @@ class TrainPPO:
         self.eval_callback = EvalCallback(
             eval_env=self.eval_vec_env,
             n_eval_episodes=1,
-            best_model_save_path=f"./result/eval/{self.results_folder_name}",
+            best_model_save_path=f"./results/eval/{self.results_folder_name}",
             eval_freq=config["eval_freq"],
             deterministic=True,
             render=False,
@@ -152,12 +155,14 @@ class TrainPPO:
             self.model = PPO(
                 policy=self.policy, 
                 n_steps=self.n_steps_per_update, # number of steps to run for each environment per update, 
-                learning_rate=0.003,
+                learning_rate=self.learning_rate,
+                ent_coef=self.ent_coef,
                 env=self.train_vec_env,
                 n_epochs=self.n_epochs,
                 tensorboard_log=f"./results/tensorboard/{self.results_folder_name}",
                 verbose=1,
-                # stats_window_size=self.n_steps / self.epi_length, # compute rollout statistics over the last iteration
+                # stats_window_size=self.n_steps / self.epi_length, # compute rollout statistics over the last iteration,
+                device=self.device
             )
         else:
             import os
@@ -167,7 +172,12 @@ class TrainPPO:
             env_path = os.path.join(folder_path, f"{prefix}_vecnormalize_{num_timesteps}_steps.pkl")
             # self.normed_vec_env = VecNormalize.load(env_path, self.dummy_vec_env)
 
-            self.model = PPO.load(self.load_model_path, env=self.train_vec_env)
+            self.model = PPO.load(
+                self.load_model_path, 
+                env=self.train_vec_env,
+                device=self.device,
+                learning_rate=self.learning_rate,
+                )
     
 
 
