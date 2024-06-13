@@ -113,6 +113,14 @@ class PsyonicThumbEnv(gym.Env):
             "hitting_timing": self.last_hitting_timing_reward,
             "success":self.success_reward
         }
+    
+    def __ref_chunks_mean_nearby(self, rec_chunk_idx, before, after):
+        # find the reference audio chunks in the range [rec_chunk_idx - before, rec_chunk_idx + after]
+        start_idx = max(rec_chunk_idx - before, 0)
+        end_idx = min(rec_chunk_idx + after, len(self.ref_audio) // 882 - 1)
+
+        return self.ref_audio[start_idx * 882 : end_idx * 882]
+
 
     def step(self, action)-> Tuple[Dict[str, Any], int, bool, bool, dict]:
         self.time_step += 1
