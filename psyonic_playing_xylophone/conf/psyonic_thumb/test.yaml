@@ -21,3 +21,4 @@ reward_weight:
     hitting_times: 10
     onset_shape: 1
     hitting_timing: 20
+    amplitude_step: 1

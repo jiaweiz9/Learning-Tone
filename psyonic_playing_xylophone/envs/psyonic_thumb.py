@@ -31,11 +31,11 @@ class PsyonicThumbEnv(gym.Env):
         #self.target = np.random.uniform(-1, 1, (5,))
 
         self._action_to_joint_movement = {
-            0: -15,
+            0: -20,
             1: -10,
             2: 0,
             3: 10,
-            4: 15,
+            4: 20,
         }
 
         self.initial_joints_state = config["psyonic"]["initial_state"]
@@ -99,6 +99,7 @@ class PsyonicThumbEnv(gym.Env):
             sr=44100
         )
 
+        # Set as attributes for logger to record
         self.last_amplitude_reward = rec_ref_reward.amplitude_reward()
         self.last_hitting_times_reward = rec_ref_reward.hitting_times_reward()
         self.last_onset_shape_reward = rec_ref_reward.onset_shape_reward()
@@ -138,7 +139,7 @@ class PsyonicThumbEnv(gym.Env):
         self.current_thumb_joint = np.clip(self.current_thumb_joint,
                                            self.min_degree, 
                                            self.max_degree)
-        self.move_distance_curr_epi += (self.current_thumb_joint - self.previous_thumb_joint)
+        self.move_distance_curr_epi += abs(self.current_thumb_joint - self.previous_thumb_joint)
         # print(
         #     "time step", self.time_step,
         #     "cur action", action,
@@ -167,20 +168,20 @@ class PsyonicThumbEnv(gym.Env):
         observation = self._get_observation()
 
         # Calculate rewards
-        # 1. reward for moving thumb not too fast or staying at low
-        # reward = -self.move_rew_weight * abs(np.mean(np.abs(curr_step_rec_audio)) - np.mean(np.abs(curr_step_ref_audio)))
-        reward = -self.config["reward_weight"]["amplitude_step"] * (np.mean(np.abs(curr_step_rec_audio)) - np.mean(np.abs(curr_step_ref_audio))) ** 2 * 50
+        # 1. reward for thumb current step amplitude
+        reward = -self.config["reward_weight"]["amplitude_step"] * abs(np.mean(np.abs(curr_step_rec_audio)) - np.mean(np.abs(curr_step_ref_audio)))
         
         self.step_rewards.append(reward.copy() / (self.config["reward_weight"]["amplitude_step"]))
         
+        # 2. reward for thumb reducing shaking
         reward += -abs(self.current_thumb_joint - self.previous_thumb_joint) * self.config["reward_weight"]["movement"]
 
         if terminated:
-            # 2. reward for playing the xylophone based on the recorded audio and the reference audio (only added at the end of the episode)
+            # 3. reward for playing the xylophone based on the recorded audio and the reference audio (only added at the end of the episode)
             table = pt.PrettyTable()
             for k, v in self.__episode_end_reward().items():
                 if k == "success":
-                    success_reward = v
+                    success_reward = v      # 100 when success (over some thresholds), elso 0
                     continue
                 elif k == "amplitude":
                     amplitude_reward = v
@@ -189,18 +190,22 @@ class PsyonicThumbEnv(gym.Env):
                 table.add_row([k, v])
                 
                 reward += self.config["reward_weight"][k] * v
-            # success_reward = self.__episode_end_reward()["success"] * self.__episode_end_reward()["amplitude"]
-            # reward += success_reward * amplitude_reward * timing_reward
-            # table.add_row(["success_reward", success_reward])
+            
+            # 4. reward for good enough sound
+            success_reward *= amplitude_reward * timing_reward * (1000 - self.move_distance_curr_epi) / 1000
+            reward += success_reward
+            table.add_row(["success reward", success_reward])
 
-            # 3. reward for finger moving back to initial state
-            reward += 10 if self.current_thumb_joint >= self.initial_joints_state[-1] else 0
+            # 5. reward for finger moving back to initial state
+            moving_back_reward = 20 if self.current_thumb_joint >= self.initial_joints_state[-1] else 0
+            reward += moving_back_reward
+
+            table.add_row(["Moving back", moving_back_reward])
+            table.add_row(["Episode moving distance", self.move_distance_curr_epi])
             print(table)
-            # print(f"current episode hitting times reward: {self.last_hitting_times_reward}")
-            # print(f"current episode hitting timing reward: {self.last_hitting_timing_reward}")
-            # print(f"current episode onset shape reward: {self.last_onset_shape_reward}")
-            # print(f"current episode amplitude reward: {self.last_amplitude_reward}")
-        # print(f"\rStep: {self.time_step}, Reward: {reward}, Observation: {observation}", end="")
+
+            self.move_distance_curr_epi = 0
+            
 
         return observation, reward, terminated, False, {}
 
