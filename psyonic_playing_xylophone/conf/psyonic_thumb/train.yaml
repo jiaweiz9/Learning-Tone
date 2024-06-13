@@ -7,6 +7,8 @@ learning_rate: 0.003
 ent_coef: 0.01
 
 epi_length: 100
+short_epi: False # if True, the episode length is 50
+
 reference_audio: "ref_audio/xylophone/ref_hit1_clip.wav"
 # wandb_run_id: None # if we want to continue training from a previous run, provide the run id here
 # load_model_path: None # if we want to continue training from a previous model, provide the path here
