@@ -105,6 +105,6 @@ class RecRefRewardFunction:
         '''
         return 100 if (
             len(self._rec_hitting_timings) == len(self._ref_hitting_timings) and
-            self.onset_shape_reward() > 0.1 and
-            self.hitting_timing_reward() > 0.5
+            # self.onset_shape_reward() > 0.05 and
+            self.hitting_timing_reward() > 0.75       # this means the timing error is smaller than 0.5 seconds
         ) else 0
