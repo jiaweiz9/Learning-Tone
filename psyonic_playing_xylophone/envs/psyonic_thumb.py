@@ -24,8 +24,8 @@ class PsyonicThumbEnv(gym.Env):
 
         self.observation_space = gym.spaces.Dict({
             # 'time_embedding': gym.spaces.Box(low=-1, high=1, shape=(2,)),
-            'current_thumb_joint': gym.spaces.Box(low=-1, high=1, shape=(1,)),
-            'previous_thumb_joint': gym.spaces.Box(low=-1, high=1, shape=(1,))
+            'current_thumb_joint': gym.spaces.Box(low=-2, high=2, shape=(1,)),
+            'previous_thumb_joint': gym.spaces.Box(low=-2, high=2, shape=(1,))
         })
         #self.state = np.zeros(5)
         #self.target = np.random.uniform(-1, 1, (5,))
@@ -129,6 +129,7 @@ class PsyonicThumbEnv(gym.Env):
         if self.time_step == 1:
             self.sound_recorder.start_recording()
             time.sleep(0.1)
+            self.epi_start_time = time.time()
             self.last_chunk_idx=[]
             self.step_rewards=[]
 
@@ -157,7 +158,8 @@ class PsyonicThumbEnv(gym.Env):
         terminated = True if self.time_step >= self.config["epi_length"] else False
         if terminated:
             if self.config["short_epi"]:
-                time.sleep(1.2)
+                epi_duration = time.time() - self.epi_start_time
+                time.sleep(2 - epi_duration)
             self.sound_recorder.stop_recording()
             audio_data = self.sound_recorder.get_episode_audio().squeeze()[4410:]
             #self.sound_recorder.save_recording()

@@ -15,7 +15,7 @@ reference_audio: "ref_audio/xylophone/ref_hit1_clip.wav"
 eval_freq: 2000
 
 psyonic:
-    initial_state: [50, 70 , 110, 115, 50, -30]
+    initial_state: [50, 70 , 110, 115, 50, -20]
     max_degree: -10
     min_degree: -50
 

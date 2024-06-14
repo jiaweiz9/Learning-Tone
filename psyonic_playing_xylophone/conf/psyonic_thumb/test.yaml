@@ -11,7 +11,7 @@ eval_freq: 10000
 # load_model_path: None # if we want to continue training from a previous model, provide the path here
 
 psyonic:
-    initial_state: [50, 70 , 110, 115, 50, -30]
+    initial_state: [50, 70 , 110, 115, 50, -20]
     max_degree: -10
     min_degree: -50
 
