@@ -92,3 +92,17 @@ data:
 - -10
 "
 ```
+
+## Results
+
+Experiment: 0613_2243-bgpv1jyk
+
+|        amplitude        |  0.9158610435469906 |
+|      hitting_times      |          0          |
+|       onset_shape       | 0.02080897135699532 |
+|      hitting_timing     |  0.9419501133786848 |
+|      success reward     |  76.77989182893056  |
+|       Moving back       |          20         |
+| Episode moving distance |         110         |
+
+python test.py epi_length=50 ++short_epi=True referen ++load_model_path=

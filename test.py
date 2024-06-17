@@ -7,6 +7,9 @@ from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.utils import set_random_seed
 import os
 from psyonic_playing_xylophone.envs.psyonic_thumb import PsyonicThumbEnv
+from psyonic_playing_xylophone.utils.vis_result import VisualizeEpisodeCallback
+import matplotlib.pyplot as plt
+import numpy as np
 
 class TestPPO:
     def __init__(self, config) -> None:
@@ -59,7 +62,32 @@ class TestPPO:
             if done:
                 obs = self.normed_vec_env.reset()
                 break
+        self.rec_audio = self.normed_vec_env.get_attr("last_rec_audio")[0]
+        self.ref_audio = self.normed_vec_env.get_attr("ref_audio")[0]
         self.normed_vec_env.close()
+
+    def _visualize_audio_step(self, sr=44100) -> None:
+        assert self.rec_audio is not None and self.ref_audio is not None, "No recorded data yet"
+        plt.figure(figsize=(20, 6))
+        max_len = max(len(self.rec_audio), len(self.ref_audio))
+        self.ref_audio = np.pad(self.ref_audio, (0, max_len - len(self.ref_audio)), 'constant')
+        self.rec_audio = np.pad(self.rec_audio, (0, max_len - len(self.rec_audio)), 'constant')
+
+        time = np.arange(0, max_len) / sr
+
+        plt.plot(time, self.rec_audio, color='blue', alpha=0.3)
+        plt.plot(time, self.ref_audio, color='red', alpha=0.3)
+
+        # rec_idx = rec_idx * 0.02
+        # plt.scatter(rec_idx, step_rew, color='black', marker='x')
+
+        # plt.title(f'Episode {rec_idx} - Reference Audio (red) vs. Recorded Audio (blue)')
+        plt.xlabel('Time (s)')
+        plt.ylabel('Amplitude')
+        plt.legend(['Recorded Audio', 'Reference Audio'])
+
+        plt.savefig("Predict")
+        plt.close()
 
 
 @hydra.main(version_base=None, config_path="psyonic_playing_xylophone/conf/psyonic_thumb", config_name="test")
@@ -69,6 +97,7 @@ def launch_test(cfg: DictConfig) -> None:
     test_ppo = TestPPO(cfg)
 
     test_ppo.do_predict()
+    test_ppo._visualize_audio_step()
 
 if __name__ == "__main__":
     launch_test()
