@@ -1,6 +1,6 @@
 import rospy, sys, os
 import numpy as np
-from std_msgs.msg import Float32MultiArray, String
+from std_msgs.msg import Float32MultiArray, Float64MultiArray, String
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))))
 from psyonic_playing_xylophone.ros_interfaces.ros_np_multiarray import ros_np_multiarray as rnm
 from sensor_msgs.msg import JointState
@@ -97,6 +97,26 @@ class QPosPublisher():
             # print(connections)
             if connections > 0:
                 self.run(data)
+                # rospy.loginfo('Qpos published')
+                rate.sleep()
+                break
+
+class PAPRASJoint6PosPublisher():
+    def __init__(self) -> None:
+        self.joint6_pub = rospy.Publisher('joint6_controller/command', Float64MultiArray, queue_size=1000)
+        self.thumb_pub = rospy.Publisher('robot1/psyonic_controller', Float32MultiArray, queue_size=1000)
+    
+    def publish_once(self, thumb_data, joint6_data):
+        thumb_data = rnm.to_multiarray_f32(thumb_data)
+        joint6_data = rnm.to_multiarray_f64(joint6_data)
+        while not rospy.is_shutdown():
+            rate = rospy.Rate(50) # 50HZ
+            thumb_pub_connections = self.thumb_pub.get_num_connections()
+            joint6_pub_connections = self.thumb_pub.get_num_connections()
+            # print(connections)
+            if thumb_pub_connections > 0 and joint6_pub_connections > 0:
+                self.thumb_pub.publish(thumb_data)
+                self.joint6_pub.publish(joint6_data)
                 # rospy.loginfo('Qpos published')
                 rate.sleep()
                 break
