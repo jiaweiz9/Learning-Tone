@@ -42,13 +42,23 @@ def __ref_chunks_mean_nearby(rec_chunk_idx, before, after):
                 min_diff = diff
                 min_diff_idx = i
         return ref_audio[min_diff_idx*882: (min_diff_idx+1)*882], min_diff
-        
+
+def __compute_freqs_diffs(rec_audio, ref_audio, sr=44100):
+    rec_S = librosa.stft(rec_audio)
+    rec_S_db = librosa.amplitude_to_db(np.abs(rec_S), ref=np.max)
+    ref_S = librosa.stft(ref_audio)
+    ref_S_db = librosa.amplitude_to_db(np.abs(ref_S), ref=np.max)
+
+    # rec_freqs = librosa.fft_frequencies()
+    return np.abs(rec_S_db - ref_S_db)
 
 
-ref_audio = librosa.load("ref_audio/xylophone/ref_hit1_clip.wav", sr=44100)[0]
-rec_audio = librosa.load("ref_audio/xylophone/ref_hit1_clip.wav", sr=44100)[0]
-rec_audio = np.pad(rec_audio, (1000, 0), 'constant')
+ref_audio = librosa.load("ref_audio/xylophone_2s/amp06_clip_ori.wav", sr=44100)[0]
+rec_audio = librosa.load("ref_audio/xylophone_2s/amp06_clip.wav", sr=44100)[0]
 
+print(np.sum(__compute_freqs_diffs(rec_audio[:88200], ref_audio[:88200])))
+
+# rec_audio = np.pad(rec_audio, (1000, 0), 'constant')
 rec_index = np.arange(0, 100)
 
 step_rews = []

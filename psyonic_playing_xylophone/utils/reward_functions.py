@@ -49,8 +49,8 @@ class RecRefRewardFunction:
         # self._ref_onset_strength_envelop /= np.max(self._ref_onset_strength_envelop)
 
         # Filter out the small onset strength values
-        self._rec_onset_strength_envelop[self._rec_onset_strength_envelop < 10] = 0
-        self._ref_onset_strength_envelop[self._ref_onset_strength_envelop < 10] = 0
+        self._rec_onset_strength_envelop[self._rec_onset_strength_envelop < 7] = 0
+        self._ref_onset_strength_envelop[self._ref_onset_strength_envelop < 7] = 0
 
         # Get the hitting timings from the onset strength envelop
         self._rec_hitting_timings = librosa.onset.onset_detect(onset_envelope=self._rec_onset_strength_envelop, sr=self.sr, units='time', normalize=True)
@@ -87,11 +87,37 @@ class RecRefRewardFunction:
     # Compute the DTW distance (Dynamic Time Warping) between the onset strength envelops of the recorded and reference audio, serving as a measure of shape similarity
     def onset_shape_reward(self) -> float:
         rec_audio_8k = librosa.resample(self.rec_audio, orig_sr=self.sr, target_sr=8000)
-        ref_audio_8k = librosa.resample(self.ref_audio, orig_sr=self.sr, target_sr=8000)
-        dtw_difference, _ = fastdtw(rec_audio_8k, ref_audio_8k)
-        # print(dtw_difference)
-        return np.exp(-dtw_difference / 50)
 
+        # ref_audio = np.pad(self.rec_audio, (10000, 0), mode='constant')
+        # ref_audio = np.zeros_like(self.rec_audio)
+        ref_audio_8k = librosa.resample(self.ref_audio, orig_sr=self.sr, target_sr=8000)
+        # print(len(rec_audio_8k))
+        # print(len(ref_audio_8k))
+        diff, _ = fastdtw(rec_audio_8k / (np.max(rec_audio_8k)), ref_audio_8k / np.max(ref_audio_8k), radius=10)
+        # print(dtw_difference)
+        # aligned_ref_audio = self.ref_audio[self._ref_hitting_frames[0]:]
+        # if len(self._rec_hitting_frames) == 0:
+        #     aligned_rec_audio = self.rec_audio
+        # else:
+        #     aligned_rec_audio = self.rec_audio[self._rec_hitting_frames[0]:]
+        
+        # min_length = min(len(aligned_ref_audio), len(aligned_rec_audio))
+        # # diff = np.abs(aligned_rec_audio[:min_length] - aligned_ref_audio[:min_length])
+        # diff = self.__compute_freqs_diffs(aligned_rec_audio[:min_length], aligned_ref_audio[:min_length])
+        # print(diff)
+
+        return -np.sum(diff / 1000)
+
+    def __compute_freqs_diffs(self, ref_audio, rec_audio):
+        assert ref_audio.shape == rec_audio.shape, "To compute frequencies difference, ref and rec should have the same shape!"
+
+        rec_S = librosa.stft(rec_audio / np.max(rec_audio))
+        rec_S_db = librosa.amplitude_to_db(np.abs(rec_S), ref=np.max)
+        ref_S = librosa.stft(ref_audio / np.max(ref_audio))
+        ref_S_db = librosa.amplitude_to_db(np.abs(ref_S), ref=np.max)
+
+        # rec_freqs = librosa.fft_frequencies()
+        return np.abs(rec_S_db - ref_S_db)
 
     def hitting_timing_reward(self) -> float:
         if len(self._rec_hitting_frames) == len(self._ref_hitting_frames):

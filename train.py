@@ -77,7 +77,7 @@ class TrainPPO:
 
         # Set up checkpoint callback to save model
         self.checkpoint_callback = CheckpointCallback(
-            save_freq=self.n_steps_per_update * 2,
+            save_freq=self.n_steps_per_update,
             save_path=f"./results/ppo/{self.results_folder_name}",
             name_prefix='model',
             save_vecnormalize=True,

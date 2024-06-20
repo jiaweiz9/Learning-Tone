@@ -33,18 +33,17 @@ class PsyonicThumbWristEnv(gym.Env):
         #self.target = np.random.uniform(-1, 1, (5,))
 
         self._action_to_thumb_movement = {
-            0: -15,
+            0: -20,
             1: 0,
-            2: 15,
-            
+            2: 20,     
         }
 
         self._action_to_wrist_movement = {
-            0: -0.15,
-            1: -0.05,
+            0: -0.075,
+            1: -0.0375,
             2: 0,
-            3: 0.05,
-            4: 0.15
+            3: 0.0375,
+            4: 0.075
         }
 
         self.initial_thumb_state = config["psyonic"]["initial_state"]
@@ -72,13 +71,14 @@ class PsyonicThumbWristEnv(gym.Env):
         self.move_rew_weight = config["reward_weight"]["movement"]
         # self.amp_step_rew_weight = config["reward_weight"]["amplitude_step"]
         self.move_distance_curr_epi = 0
+        self.epi_length = self.config["epi_length"]
 
         self.__setup_command_publisher()
         self.__load_reference_audio()
 
     def __time_step_embedding(self) -> ArrayLike:
-        return np.array([np.sin(self.time_step), 
-                         np.cos(self.time_step)])
+        return np.array([np.sin(2 * np.pi * self.time_step / self.epi_length), 
+                         np.cos(2 * np.pi * self.time_step / self.epi_length)])
     
     def __norm_thumb_obs(self, joint):
         return (joint + 30) / -20
@@ -154,6 +154,7 @@ class PsyonicThumbWristEnv(gym.Env):
             self.epi_start_time = time.time()
             self.last_chunk_idx=[]
             self.step_rewards=[]
+            self.num_thumb_min_step = 0
 
         self.previous_thumb_joint = self.current_thumb_joint
         self.current_thumb_joint += self._action_to_thumb_movement[action[0]]
@@ -167,7 +168,7 @@ class PsyonicThumbWristEnv(gym.Env):
         self.current_wrist_joint = np.clip(self.current_wrist_joint,
                                            self.wrist_min_degree,
                                            self.wrist_max_degree)
-        self.move_distance_curr_epi += abs(self.current_wrist_joint - self.previous_wrist_joint)
+        self.move_distance_curr_epi += abs(self.current_wrist_joint - self.previous_wrist_joint) * 100
 
 
         next_thumb_movement, next_wrist_movement = self.get_state()
@@ -185,6 +186,10 @@ class PsyonicThumbWristEnv(gym.Env):
                 epi_duration = time.time() - self.epi_start_time
                 print(epi_duration)
                 time.sleep(2 - epi_duration)
+            
+            # Early reset
+            self.wrist_pos_publisher.publish_once(self.initial_thumb_state, self.initial_wrist_state)
+
             self.sound_recorder.stop_recording()
             audio_data = self.sound_recorder.get_episode_audio().squeeze()[4410:]
             #self.sound_recorder.save_recording()
@@ -203,7 +208,13 @@ class PsyonicThumbWristEnv(gym.Env):
         self.step_rewards.append(reward.copy() / (self.config["reward_weight"]["amplitude_step"]))
         
         # 2. reward for thumb reducing shaking
-        reward += -abs(self.current_thumb_joint - self.previous_thumb_joint) * self.config["reward_weight"]["movement"]
+        reward += -(abs(self.current_thumb_joint - self.previous_thumb_joint) + 
+                    abs(self.current_wrist_joint - self.previous_wrist_joint) * 100) \
+                    * self.config["reward_weight"]["movement"]
+        
+        # if self.previous_thumb_joint == self.thumb_min_degree and self.current_thumb_joint == self.thumb_min_degree:
+        #     reward += -self.config["reward_weight"]["movement"] * 2
+        self.num_thumb_min_step += 1 if self.current_thumb_joint == self.thumb_min_degree else 0
 
         if terminated:
             # 3. reward for playing the xylophone based on the recorded audio and the reference audio (only added at the end of the episode)
@@ -221,20 +232,21 @@ class PsyonicThumbWristEnv(gym.Env):
                 reward += self.config["reward_weight"][k] * v
             
             # 4. reward for good enough sound
-            success_reward *= amplitude_reward * timing_reward * (1000 - self.move_distance_curr_epi) / 1000
+            success_reward *= amplitude_reward * timing_reward * (1200 - self.move_distance_curr_epi) / 1200
             reward += success_reward
             table.add_row(["success reward", success_reward])
 
             # 5. reward for finger moving back to initial state
             moving_back_reward = 20 if self.current_thumb_joint >= self.initial_thumb_state[-1] \
-                                    and self.current_wrist_joint >= self.initial_thumb_state[-1] else 0
+                                    and self.current_wrist_joint == self.initial_thumb_state[-1] else 0
             reward += moving_back_reward
 
+            reward += -self.num_thumb_min_step
+
             table.add_row(["Moving back", moving_back_reward])
+            table.add_row(["Num of Min (Thumb)", -self.num_thumb_min_step])
             table.add_row(["Episode moving distance", self.move_distance_curr_epi])
             print(table)
-
-            self.move_distance_curr_epi = 0
             
 
         return observation, reward, terminated, False, {}
@@ -244,15 +256,13 @@ class PsyonicThumbWristEnv(gym.Env):
         super().reset(seed=seed, options=options)
         print(self.time_step)
         self.time_step = 0
+        self.move_distance_curr_epi = 0
 
-        self.current_thumb_joint = self.initial_thumb_state[-1]
         # self.thumb_pos_publisher.publish_once(self.initial_thumb_state)
-        print("Initial thumb joint: ", self.current_thumb_joint)
-
+        self.current_thumb_joint = self.initial_thumb_state[-1]
         self.current_wrist_joint = self.initial_wrist_state[-1]
-        self.wrist_pos_publisher.publish_once(self.initial_thumb_state, self.initial_wrist_state)
+        print("Initial thumb joint: ", self.current_thumb_joint)
         print("Initial wrist joint: ", self.current_wrist_joint)
-
         # self.sound_recorder.start_recording()
 
         self.previous_thumb_joint = self.current_thumb_joint

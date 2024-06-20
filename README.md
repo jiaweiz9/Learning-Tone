@@ -62,19 +62,14 @@ rosrun rosserial_python serial_node.py /dev/ttyACM0 _baud:=4000000
 
 
 
-rostopic pub robot1/psyonic_controller std_msgs/Float32MultiArray "layout:
+rostopic pub /joint6_controller/command std_msgs/Float64MultiArray "layout:
   dim:
   - label: ''
     size: 0
     stride: 0
   data_offset: 0
 data:
-- 105
-- 105
-- 105
-- 110
-- 70
-- -0
+- 0
 "
 
 rostopic pub robot1/psyonic_controller std_msgs/Float32MultiArray "layout:
@@ -92,6 +87,8 @@ data:
 - -10
 "
 ```
+
+cd ws_music && source devel/setup.bash && roslaunch papras_table_demo hw_joint6.launch
 
 ## Results
 
