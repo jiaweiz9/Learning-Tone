@@ -238,7 +238,7 @@ class PsyonicThumbWristEnv(gym.Env):
 
             # 5. reward for finger moving back to initial state
             moving_back_reward = 20 if self.current_thumb_joint >= self.initial_thumb_state[-1] \
-                                    and self.current_wrist_joint == self.initial_thumb_state[-1] else 0
+                                    and self.current_wrist_joint >= self.initial_thumb_state[-1] else 0
             reward += moving_back_reward
 
             reward += -self.num_thumb_min_step
@@ -254,7 +254,8 @@ class PsyonicThumbWristEnv(gym.Env):
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed, options=options)
-        print(self.time_step)
+        # print(self.time_step)
+        time.sleep(0.5)
         self.time_step = 0
         self.move_distance_curr_epi = 0
 

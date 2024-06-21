@@ -86,6 +86,7 @@ class TrainPPO:
         self.visualize_callback = VisualizeEpisodeCallback(
             figures_path=f"./results/figures/{ self.results_folder_name}",
             visualize_freq=self.n_steps_per_update,
+            folder_name = self.results_folder_name
         )
 
         self.eval_callback = EvalCallback(

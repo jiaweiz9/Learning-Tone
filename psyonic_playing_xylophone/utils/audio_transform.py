@@ -2,12 +2,14 @@ import numpy as np
 from numpy.typing import ArrayLike
 import librosa
 import scipy
+from scipy.fft import fft, fftfreq, fftshift
 import matplotlib.pyplot as plt
 from fastdtw import fastdtw
 import os
+import time
 
 def waveform_to_frequence(audio: ArrayLike) -> ArrayLike:
-    return scipy.fft.fft(audio)
+    return fftshift(fft(audio)), fftshift(fftfreq(len(audio)))
 
 
 def waveform_to_time_freq(audio: ArrayLike, to_db=False) -> ArrayLike:
@@ -28,12 +30,33 @@ def display_spectrogram(rec_audio: ArrayLike, ref_audio: ArrayLike, sr: int):
     librosa.display.specshow(waveform_to_time_freq(ref_audio), y_axis='log', x_axis='time', sr=sr, ax=ax[1])
 
     ax[0].set(title='Linear-frequency power spectrogram')
-    ax[0].label_outer()
+    # ax[0].label_outer()
 
     ax[1].set(title='Log-frequency power spectrogram')
-    ax[1].label_outer()
-    fig.colorbar(img, ax=ax, format="%+2.f dB")
-    fig.show()
+    # ax[1].label_outer()
+    # fig.colorbar(img, ax=ax, format="%+2.f dB")
+    plt.show()
+
+
+def display_freq_components(rec_audio: ArrayLike, ref_audio: ArrayLike, sr: int = 44100):
+    rec_freq_comp, freqs = waveform_to_frequence(rec_audio)
+    ref_freq_comp, freqs = waveform_to_frequence(ref_audio)
+
+    freq_range = np.arange(0, len(rec_freq_comp))
+    # import pdb 
+    # print(np.real(rec_freq_comp))
+    # pdb.set_trace()
+    # fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True)
+    plt.plot(freqs, np.abs(rec_freq_comp), color='blue', alpha=0.3)
+    plt.plot(freqs, np.abs(ref_freq_comp), color='red', alpha=0.3)
+
+    # plt.xlabel('Time (s)')
+    # plt.ylabel('Amplitude')
+    # plt.legend(['Recorded Audio', 'Reference Audio'])
+    # plt.plot(freqs, (np.abs(rec_freq_comp) - np.abs(ref_freq_comp)), color='green', alpha=0.3)
+    plt.show()
+    print(np.sum((np.abs(rec_freq_comp) - np.abs(ref_freq_comp)) ** 2))
+
 
 def display_audio(ref_audio, rec_audio, sr=44100) -> None:
         
@@ -68,10 +91,17 @@ def dtw_similarity(rec_audio: ArrayLike, ref_audio: ArrayLike) -> float:
 
 
 if __name__ == "__main__":
-    rec_audio_path = "ref_audio/xylophone_2s/amp06_clip_ori.wav"
-    ref_audio_path = "ref_audio/xylophone_2s/amp06_clip.wav"
+    rec_audio_path = "results/audios/0620_1813-sn7xeq3p/episode_8000.wav"
+    ref_audio_path = "ref_audio/xylophone_keyB/amp045_clip.wav"
     rec_audio, sr = librosa.load(path=rec_audio_path)
     ref_audio, sr = librosa.load(path=ref_audio_path)
 
-    print(dtw_similarity(rec_audio, ref_audio))
-    display_spectrogram(rec_audio / np.max(rec_audio), ref_audio / np.max(ref_audio), sr)
+    # print(dtw_similarity(rec_audio, ref_audio))
+    # display_spectrogram(rec_audio, ref_audio, sr)
+    # display_freq_components(rec_audio / np.max(rec_audio), ref_audio / np.max(ref_audio))
+    display_freq_components(rec_audio, ref_audio)
+    # amp_freqs = np.abs(waveform_to_frequence(ref_audio))
+    # print(len(amp_freqs))
+    # for i in range(len(amp_freqs)):
+    #     print(amp_freqs[i])
+    # print(amp_freqs)

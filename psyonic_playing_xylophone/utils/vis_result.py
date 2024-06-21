@@ -7,7 +7,7 @@ import os
 # from utils.reward_functions import assign_rewards_to_episode
 
 class VisualizeEpisodeCallback(BaseCallback):
-    def __init__(self, verbose: int = 0, figures_path: str = None, visualize_freq: int = 1000):
+    def __init__(self, verbose: int = 0, figures_path: str = None, visualize_freq: int = 1000, folder_name: str = None):
         super().__init__(verbose)
         # self.unwrapped_env = self.training_env.unwrapped
         if figures_path is None:
@@ -19,6 +19,7 @@ class VisualizeEpisodeCallback(BaseCallback):
             os.makedirs(self.figures_path)
 
         self.visualize_freq = visualize_freq
+        self.folder_name = folder_name
         
 
     def _on_step(self) -> bool:
@@ -99,3 +100,7 @@ class VisualizeEpisodeCallback(BaseCallback):
         img_path = os.path.join(self.figures_path, file_name)
         plt.savefig(img_path)
         plt.close()
+
+        if not os.path.exists(f"results/audios/{self.folder_name}"):
+            os.makedirs(f"results/audios/{self.folder_name}")
+        wavio.write(f"results/audios/{self.folder_name}/episode_{self.num_timesteps}.wav", rec_audio[:88200], rate=44100, sampwidth=4)

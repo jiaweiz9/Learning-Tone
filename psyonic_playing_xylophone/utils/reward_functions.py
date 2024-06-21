@@ -4,6 +4,8 @@ import librosa
 from fastdtw import fastdtw
 from scipy.spatial.distance import euclidean
 from typing import List, Any, Dict, Literal
+import scipy
+from scipy.fft import fft, fftfreq, fftshift
 
 class RecRefRewardFunction:
     def __init__(self, rec_audio:NDArray[Any]=None, 
@@ -86,27 +88,24 @@ class RecRefRewardFunction:
 
     # Compute the DTW distance (Dynamic Time Warping) between the onset strength envelops of the recorded and reference audio, serving as a measure of shape similarity
     def onset_shape_reward(self) -> float:
-        rec_audio_8k = librosa.resample(self.rec_audio, orig_sr=self.sr, target_sr=8000)
+        # rec_audio_8k = librosa.resample(self.rec_audio, orig_sr=self.sr, target_sr=8000)
 
         # ref_audio = np.pad(self.rec_audio, (10000, 0), mode='constant')
         # ref_audio = np.zeros_like(self.rec_audio)
-        ref_audio_8k = librosa.resample(self.ref_audio, orig_sr=self.sr, target_sr=8000)
-        # print(len(rec_audio_8k))
-        # print(len(ref_audio_8k))
-        diff, _ = fastdtw(rec_audio_8k / (np.max(rec_audio_8k)), ref_audio_8k / np.max(ref_audio_8k), radius=10)
+        # ref_audio_8k = librosa.resample(self.ref_audio, orig_sr=self.sr, target_sr=8000)
+        
+        # diff, _ = fastdtw(rec_audio_8k / (np.max(rec_audio_8k)), ref_audio_8k / np.max(ref_audio_8k), radius=3)
         # print(dtw_difference)
         # aligned_ref_audio = self.ref_audio[self._ref_hitting_frames[0]:]
-        # if len(self._rec_hitting_frames) == 0:
-        #     aligned_rec_audio = self.rec_audio
-        # else:
-        #     aligned_rec_audio = self.rec_audio[self._rec_hitting_frames[0]:]
+        rec_audio = self.rec_audio[:88200]
+        ref_audio = self.ref_audio[:88200]
+        def waveform_to_frequence(audio: NDArray) -> NDArray:
+            return fftshift(fft(audio)), fftshift(fftfreq(len(audio)))
         
-        # min_length = min(len(aligned_ref_audio), len(aligned_rec_audio))
-        # # diff = np.abs(aligned_rec_audio[:min_length] - aligned_ref_audio[:min_length])
-        # diff = self.__compute_freqs_diffs(aligned_rec_audio[:min_length], aligned_ref_audio[:min_length])
-        # print(diff)
+        rec_freq_comp, freqs = waveform_to_frequence(rec_audio)
+        ref_freq_comp, freqs = waveform_to_frequence(ref_audio)
 
-        return -np.sum(diff / 1000)
+        return -min(np.sum((np.abs(rec_freq_comp) - np.abs(ref_freq_comp)) ** 2) / 100000, 50)
 
     def __compute_freqs_diffs(self, ref_audio, rec_audio):
         assert ref_audio.shape == rec_audio.shape, "To compute frequencies difference, ref and rec should have the same shape!"
@@ -134,6 +133,6 @@ class RecRefRewardFunction:
         return 100 if (
             len(self._rec_hitting_timings) == len(self._ref_hitting_timings) and
             self.amplitude_reward() > 0.5 and
-            # self.onset_shape_reward() > 0.05 and
+            self.onset_shape_reward() > -10 and
             self.hitting_timing_reward() > 0.9       # this means the timing error is smaller than 0.5 seconds
         ) else 0
