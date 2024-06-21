@@ -72,6 +72,7 @@ class PsyonicThumbWristEnv(gym.Env):
         # self.amp_step_rew_weight = config["reward_weight"]["amplitude_step"]
         self.move_distance_curr_epi = 0
         self.epi_length = self.config["epi_length"]
+        self.rollouts = 0
 
         self.__setup_command_publisher()
         self.__load_reference_audio()
@@ -118,7 +119,8 @@ class PsyonicThumbWristEnv(gym.Env):
             rec_audio=self.last_rec_audio,
             ref_audio=self.ref_audio,
             episode_length=self.config["epi_length"],
-            sr=44100
+            sr=44100,
+            iteration=self.rollouts
         )
 
         # Set as attributes for logger to record
@@ -247,6 +249,7 @@ class PsyonicThumbWristEnv(gym.Env):
             table.add_row(["Num of Min (Thumb)", -self.num_thumb_min_step])
             table.add_row(["Episode moving distance", self.move_distance_curr_epi])
             print(table)
+            self.rollouts += 1
             
 
         return observation, reward, terminated, False, {}

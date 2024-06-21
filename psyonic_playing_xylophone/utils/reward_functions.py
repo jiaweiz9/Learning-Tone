@@ -11,11 +11,13 @@ class RecRefRewardFunction:
     def __init__(self, rec_audio:NDArray[Any]=None, 
                  ref_audio: NDArray[Any]=None, 
                  episode_length: int=100,
-                 sr: int=44100):
+                 sr: int=44100,
+                 rollouts: int=0):
         self.rec_audio = rec_audio
         self.ref_audio = ref_audio
         self.episode_length = episode_length
         self.sr = sr
+        self.rollouts = rollouts
 
         self.__check_audio_data()
         self.__generate_audio_strength_info()
@@ -125,6 +127,14 @@ class RecRefRewardFunction:
             # return 1 - 4 * timing_diff ** 2 if timing_diff < 0.5 else 0
             return 1 - timing_diff / 2 if timing_diff / 2 < 1 else 0
         return 0
+    
+    def success_threshold_scheduler(self):
+        '''
+        This function should return a value between 0 and 1, which will be used to determine the success threshold
+        '''
+        timing_threshold = min(0.7 + 0.1 * self.rollouts // 1000, 0.9)
+        amplitude_threshold = min(0.5 + 0.1 * self.rollouts // 1000, 0.7)
+        return timing_threshold, amplitude_threshold
     
     def success_reward(self) -> float:
         '''
