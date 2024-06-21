@@ -33,9 +33,9 @@ class PsyonicThumbWristEnv(gym.Env):
         #self.target = np.random.uniform(-1, 1, (5,))
 
         self._action_to_thumb_movement = {
-            0: -20,
+            0: -7.5,
             1: 0,
-            2: 20,     
+            2: 7.5,     
         }
 
         self._action_to_wrist_movement = {

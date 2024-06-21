@@ -17,12 +17,12 @@ eval_freq: 2000
 psyonic:
   initial_state: [50, 70 , 110, 115, 10, -20]
   max_degree: -10
-  min_degree: -50
+  min_degree: -25
 
 papras_joint6:
   initial_state: [0]
-  max_degree: 0.2
-  min_degree: -0.2
+  max_degree: 0.1
+  min_degree: -0.1
 
 reward_weight:
   amplitude_step: 1
