@@ -29,5 +29,5 @@ reward_weight:
   movement: 0.0025    # devided by 2 for adding wrist movements
   amplitude: 10
   hitting_times: 10
-  onset_shape: 0.5
+  onset_shape: 10
   hitting_timing: 40

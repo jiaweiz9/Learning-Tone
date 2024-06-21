@@ -187,7 +187,7 @@ class PsyonicThumbWristEnv(gym.Env):
             if self.config.get("short_epi", False):
                 epi_duration = time.time() - self.epi_start_time
                 print(epi_duration)
-                time.sleep(2 - epi_duration)
+                time.sleep(2.3 - epi_duration)
             
             # Early reset
             self.wrist_pos_publisher.publish_once(self.initial_thumb_state, self.initial_wrist_state)

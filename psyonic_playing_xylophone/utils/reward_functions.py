@@ -6,6 +6,7 @@ from scipy.spatial.distance import euclidean
 from typing import List, Any, Dict, Literal
 import scipy
 from scipy.fft import fft, fftfreq, fftshift
+from utils.audio_transform import pre_emphasis_high_pass, waveform_to_frequence
 
 class RecRefRewardFunction:
     def __init__(self, rec_audio:NDArray[Any]=None, 
@@ -101,8 +102,6 @@ class RecRefRewardFunction:
         # aligned_ref_audio = self.ref_audio[self._ref_hitting_frames[0]:]
         rec_audio = self.rec_audio[:88200]
         ref_audio = self.ref_audio[:88200]
-        def waveform_to_frequence(audio: NDArray) -> NDArray:
-            return fftshift(fft(audio)), fftshift(fftfreq(len(audio)))
         
         rec_freq_comp, freqs = waveform_to_frequence(rec_audio)
         ref_freq_comp, freqs = waveform_to_frequence(ref_audio)
@@ -143,6 +142,6 @@ class RecRefRewardFunction:
         return 100 if (
             len(self._rec_hitting_timings) == len(self._ref_hitting_timings) and
             self.amplitude_reward() > 0.5 and
-            self.onset_shape_reward() > -10 and
+            # self.onset_shape_reward() > -10 and
             self.hitting_timing_reward() > 0.9       # this means the timing error is smaller than 0.5 seconds
         ) else 0

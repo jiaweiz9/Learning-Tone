@@ -95,17 +95,29 @@ def dtw_similarity(rec_audio: ArrayLike, ref_audio: ArrayLike) -> float:
     diff, _ = fastdtw(rec_audio / (np.max(rec_audio)), ref_audio / np.max(ref_audio), radius=5)
     return np.sum(diff)
 
+def pre_emphasis_high_pass(audio, alpha=0.95):
+    filtered_data = np.copy(audio)
+
+    for n in range(1, len(audio)):
+        # filtered_data[n] = alpha * audio[n] + (1 - alpha) * audio[n - 1]  # low-pass
+        filtered_data[n] = audio[n] - alpha * audio[n - 1] # high-pass
+    
+    return filtered_data
+
+
 
 if __name__ == "__main__":
-    rec_audio_path = "ref_audio/xylophone_2s/amp03_clip.wav"
-    ref_audio_path = "ref_audio/xylophone_2s/amp06_clip.wav"
+    rec_audio_path = "results/audios/0620_1813-sn7xeq3p/episode_22000.wav"
+    ref_audio_path = "ref_audio/xylophone_keyB/amp045_clip.wav"
     rec_audio, sr = librosa.load(path=rec_audio_path)
     ref_audio, sr = librosa.load(path=ref_audio_path)
 
+    filtered_rec_audio = pre_emphasis_high_pass(rec_audio)
+    filtered_ref_audio = pre_emphasis_high_pass(ref_audio)
     # print(dtw_similarity(rec_audio, ref_audio))
     # display_spectrogram(rec_audio, ref_audio, sr)
     # display_freq_components(rec_audio / np.max(rec_audio), ref_audio / np.max(ref_audio))
-    display_freq_components(rec_audio[:88200] / np.max(rec_audio), ref_audio[:88200] / np.max(ref_audio))
+    display_freq_components(filtered_rec_audio[:88200] / np.max(filtered_rec_audio), filtered_ref_audio[:88200] / np.max(filtered_ref_audio))
     # amp_freqs = np.abs(waveform_to_frequence(ref_audio))
     # print(len(amp_freqs))
     # for i in range(len(amp_freqs)):
