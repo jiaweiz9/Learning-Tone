@@ -158,33 +158,33 @@ def visualize_audio(data, sr):
     plt.show()
 
 if __name__ == "__main__":
-    # sound_recorder = SoundRecorder()
-    # sound_recorder.start_recording()
-    # time.sleep(0.1)
-    # # time.sleep(5)
-    # # data = sound_recorder.get_current_buffer()
-    # # print(len(data)//882)
-    # # index_list = []
+    sound_recorder = SoundRecorder()
+    sound_recorder.start_recording()
+    time.sleep(0.1)
+    # time.sleep(5)
+    # data = sound_recorder.get_current_buffer()
+    # print(len(data)//882)
+    # index_list = []
 
-    # # # for i in range(100):
-    # # #     time.sleep(2)
-    # # #     data, index = sound_recorder.get_last_step_audio()
-    # # #     print(len(data), " ", index)
-    # # #     index_list.append(index)
-    # time.sleep(2.5)
-    # sound_recorder.stop_recording()
+    # # for i in range(100):
+    # #     time.sleep(2)
+    # #     data, index = sound_recorder.get_last_step_audio()
+    # #     print(len(data), " ", index)
+    # #     index_list.append(index)
+    time.sleep(2.5)
+    sound_recorder.stop_recording()
 
-    # data = sound_recorder.get_episode_audio()
-    # # # print(len(data[4410:])//882)
-    # # # print(index_list)
-    # import wavio
-    # import matplotlib.pyplot as plt
-    # wavio.write("collected_audio.wav", data[4410:], rate=44100, sampwidth=4)
-    # # sound_recorder.clear_buffer()
-    # # time_sequence = np.arange(0, len(data[4410:])) / 44100
-    # # plt.figure(figsize=(20, 6))
-    # # plt.plot(time_sequence, data[4410:], color='red', alpha=0.3)
-    # # plt.show()
+    data = sound_recorder.get_episode_audio()
+    # # print(len(data[4410:])//882)
+    # # print(index_list)
+    import wavio
+    import matplotlib.pyplot as plt
+    wavio.write("collected_audio.wav", data[4410:], rate=44100, sampwidth=4)
+    sound_recorder.clear_buffer()
+    time_sequence = np.arange(0, len(data[4410:])) / 44100
+    plt.figure(figsize=(20, 6))
+    plt.plot(time_sequence, data[4410:], color='red', alpha=0.3)
+    plt.show()
 
     # import librosa
     # audio = librosa.load("collected_audio.wav", sr=44100)[0]
@@ -192,7 +192,7 @@ if __name__ == "__main__":
     # wavio.write("clipped_amp06.wav", audio, rate=44100, sampwidth=4)
 
     ########### Clip audio here #####################
-    import wavio, librosa
-    audio = librosa.load("collected_audio.wav", sr=44100)[0]
-    visualize_audio(data=audio[0:88200], sr=44100)
-    wavio.write("amp04_clip.wav", data=audio[0:88200], rate=44100, sampwidth=4)
+    # import wavio, librosa
+    # audio = librosa.load("collected_audio.wav", sr=44100)[0]
+    # visualize_audio(data=audio[0:88200], sr=44100)
+    # wavio.write("amp04_clip.wav", data=audio[0:88200], rate=44100, sampwidth=4)
