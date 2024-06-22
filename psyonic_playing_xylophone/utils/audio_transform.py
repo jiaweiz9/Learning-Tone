@@ -146,6 +146,7 @@ def waveform_to_time_freq(audio: ArrayLike, to_db=False) -> ArrayLike:
     return np.abs(S)
 
 
+
 def waveform_to_Hilbert_trans(audio: ArrayLike) -> ArrayLike:
     return scipy.signal.hilbert(audio)
 
@@ -225,42 +226,48 @@ def dtw_similarity(rec_audio: ArrayLike, ref_audio: ArrayLike) -> float:
 
 
 if __name__ == "__main__":
-    rec_audio_path = "/home/sankalp/ws_music/src/making_sound_with_hand/ref_audio/xylophone_keyB/amp045_clip.wav"
-    ref_audio_path = "/home/sankalp/ws_music/src/making_sound_with_hand/results/audios/0620_1813-sn7xeq3p/episode_34000.wav"
+    rec_audio_path = "ref_audio/xylophone_keyB/amp045_clip.wav"
+    ref_audio_path = "results/audios/0621_1913-l634tcvy/episode_202000.wav"
     rec_audio, sr = librosa.load(path=rec_audio_path)
     ref_audio, sr = librosa.load(path=ref_audio_path)
 
-    mcc_feat = python_speech_features.mfcc(rec_audio, sr)
-    d_mfcc_feat = python_speech_features.delta(mcc_feat, 2)
-    fbank_feat = python_speech_features.logfbank(rec_audio,sr)
-    print(fbank_feat[1:3, :])
+    # mcc_feat = python_speech_features.mfcc(rec_audio, sr)
+    # # d_mfcc_feat = python_speech_features.delta(mcc_feat, 2)
+    # fbank_feat = python_speech_features.logfbank(rec_audio,sr)
+    # print(fbank_feat[1:3, :])
 
-    filterbank_features = fbank_feat.T
-    # plt.matshow(filterbank_features)
-    # plt.title('Filter bank')
+    # filterbank_features = fbank_feat.T
+    # # plt.matshow(filterbank_features)
+    # # plt.title('Filter bank')
+
+    # # plt.show()
+
+    # mcc_feat_ref = python_speech_features.mfcc(ref_audio, sr)
+    # # d_mfcc_feat_ref = python_speech_features.delta(mcc_feat, 2)
+    # fbank_feat_ref = python_speech_features.logfbank(ref_audio,sr)
+
+    # filterbank_features_ref = fbank_feat_ref.T
+    # # plt.matshow(filterbank_features)
+    # # plt.title('Filter bank REF 2')
 
     # plt.show()
 
-    mcc_feat_ref = python_speech_features.mfcc(ref_audio, sr)
-    d_mfcc_feat_ref = python_speech_features.delta(mcc_feat, 2)
-    fbank_feat_ref = python_speech_features.logfbank(ref_audio,sr)
+    # test = fastdtw(fbank_feat, fbank_feat_ref, radius=5)
 
-    filterbank_features_ref = fbank_feat_ref.T
-    # plt.matshow(filterbank_features)
-    # plt.title('Filter bank REF 2')
-
-    plt.show()
-
-    test = fastdtw(fbank_feat, fbank_feat_ref, radius=5)
-
-    print(test[0])
+    # print(test[0])
 
 
     # import pdb 
     # pdb.set_trace()
 
     # print(dtw_similarity(rec_audio, ref_audio))
-    # display_spectrogram(rec_audio, ref_audio, sr)
+    display_freq_components(rec_audio, ref_audio, sr)
+    data_fft = np.fft.fft(ref_audio)
+    freqs = np.fft.fftfreq(len(ref_audio), 1 / 44100)
+    data_fft[np.abs(freqs) < 2000] = 0
+    filtered_data = np.fft.ifft(data_fft)
+
+    # display_audio(rec_audio, filtered_data)
     # display_freq_components(rec_audio / np.max(rec_audio), ref_audio / np.max(ref_audio))
     # display_freq_components(rec_audio[:88200] / np.max(rec_audio), ref_audio[:88200] / np.max(ref_audio))
     # amp_freqs = np.abs(waveform_to_frequence(ref_audio))

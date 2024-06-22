@@ -20,7 +20,7 @@ class PsyonicThumbWristEnv(gym.Env):
         super().__init__()
         self.config = config
         # action space: 0 := -10, 1 := no change, 2 := +10
-        self.action_space = gym.spaces.MultiDiscrete([3, 5])
+        self.action_space = gym.spaces.MultiDiscrete([5, 5])
 
         self.observation_space = gym.spaces.Dict({
             # 'time_embedding': gym.spaces.Box(low=-1, high=1, shape=(2,)),
@@ -33,9 +33,11 @@ class PsyonicThumbWristEnv(gym.Env):
         #self.target = np.random.uniform(-1, 1, (5,))
 
         self._action_to_thumb_movement = {
-            0: -7.5,
-            1: 0,
-            2: 7.5,     
+            0: -20,
+            1: -10,
+            2: 0,
+            3: 10,
+            4: 20
         }
 
         self._action_to_wrist_movement = {
@@ -115,12 +117,14 @@ class PsyonicThumbWristEnv(gym.Env):
         if isinstance(self.last_rec_audio, np.ndarray) is False:
             raise ValueError("No valid recorded audio data found")
 
+        print(self.rollouts)
+
         rec_ref_reward = RecRefRewardFunction(
             rec_audio=self.last_rec_audio,
             ref_audio=self.ref_audio,
             episode_length=self.config["epi_length"],
             sr=44100,
-            iteration=self.rollouts
+            rollouts=self.rollouts
         )
 
         # Set as attributes for logger to record
@@ -195,9 +199,12 @@ class PsyonicThumbWristEnv(gym.Env):
             self.sound_recorder.stop_recording()
             audio_data = self.sound_recorder.get_episode_audio().squeeze()[4410:]
             #self.sound_recorder.save_recording()
+            data_fft = np.fft.fft(audio_data)
+            freqs = np.fft.fftfreq(len(data_fft), 1 / 44100)
+            data_fft[np.abs(freqs) < 1000] = 0
+            self.last_rec_audio = np.real(np.fft.ifft(data_fft))
             print(f"Current episode data length: {audio_data.shape}")
             self.sound_recorder.clear_buffer()
-            self.last_rec_audio = audio_data
             self.last_chunk_idx = np.array(self.last_chunk_idx)
             self.last_chunk_idx = self.last_chunk_idx - self.last_chunk_idx[0]
 

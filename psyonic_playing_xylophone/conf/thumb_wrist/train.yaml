@@ -1,7 +1,7 @@
 env_id: PsyonicThumbWristEnv-v0
 policy: "MlpPolicy"
 total_timesteps: 1000000
-n_steps_per_update: 2000  # n steps per update
+n_steps_per_update: 1000  # n steps per update
 n_epochs: 20
 learning_rate: 0.003
 ent_coef: 0.01
@@ -15,19 +15,19 @@ reference_audio: "ref_audio/xylophone_keyB/amp045_clip.wav"
 eval_freq: 2000
 
 psyonic:
-  initial_state: [50, 70 , 110, 115, 10, -20]
+  initial_state: [50, 70 , 110, 115, 50, -20]
   max_degree: -10
-  min_degree: -25
+  min_degree: -40
 
 papras_joint6:
   initial_state: [0]
-  max_degree: 0.1
-  min_degree: -0.1
+  max_degree: 0.125
+  min_degree: -0.125
 
 reward_weight:
   amplitude_step: 1
   movement: 0.0025    # devided by 2 for adding wrist movements
   amplitude: 10
   hitting_times: 10
-  onset_shape: 10
+  onset_shape: 0.5
   hitting_timing: 40

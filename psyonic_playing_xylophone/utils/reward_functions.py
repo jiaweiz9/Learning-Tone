@@ -6,7 +6,9 @@ from scipy.spatial.distance import euclidean
 from typing import List, Any, Dict, Literal
 import scipy
 from scipy.fft import fft, fftfreq, fftshift
-from utils.audio_transform import pre_emphasis_high_pass, waveform_to_frequence
+# from utils.audio_transform import pre_emphasis_high_pass, waveform_to_frequence
+import python_speech_features
+
 
 class RecRefRewardFunction:
     def __init__(self, rec_audio:NDArray[Any]=None, 
@@ -36,10 +38,16 @@ class RecRefRewardFunction:
             raise ValueError("Reference audio and recorded audio must be numpy arrays, but reference audio is {} and recorded audio is {}".format(type(self.ref_audio), type(self.rec_audio)))
         
         # remove motor noise whose amplitude is around 0.02
-        hit_amp_th = 0.02
+        # hit_amp_th = 0.02
         self.rec_max_amp = np.max(abs(self.rec_audio))
-        if self.rec_max_amp < hit_amp_th:
-            self.rec_audio[:] = 1e-5
+        # if self.rec_max_amp < hit_amp_th:
+        #     self.rec_audio[:] = 1e-5
+
+        # data_fft = np.fft.fft(self.rec_audio)
+        # freqs = np.fft.fftfreq(len(data_fft), 1 / 44100)
+        # data_fft[np.abs(freqs) < 1000] = 0
+        # self.rec_audio = np.real(np.fft.ifft(data_fft))
+
         self.ref_max_amp = np.max(abs(self.ref_audio))
         print("ref_audio shape: ", self.ref_audio.shape)
         print("rec_audio shape: ", self.rec_audio.shape)
@@ -91,22 +99,22 @@ class RecRefRewardFunction:
 
     # Compute the DTW distance (Dynamic Time Warping) between the onset strength envelops of the recorded and reference audio, serving as a measure of shape similarity
     def onset_shape_reward(self) -> float:
-        # rec_audio_8k = librosa.resample(self.rec_audio, orig_sr=self.sr, target_sr=8000)
+        diff = self.__mel_filterbank()
+        print(diff)
+        shape_reward = -min(diff / 1000, 20)
+        print(f"Shape diff: {diff}")
+        return shape_reward
+    
+    def __mel_filterbank(self):
+        # mcc_feat = python_speech_features.mfcc(self.rec_audio, self.sr)
+        fbank_feat = python_speech_features.logfbank(self.rec_audio[:88200], self.sr)
 
-        # ref_audio = np.pad(self.rec_audio, (10000, 0), mode='constant')
-        # ref_audio = np.zeros_like(self.rec_audio)
-        # ref_audio_8k = librosa.resample(self.ref_audio, orig_sr=self.sr, target_sr=8000)
-        
-        # diff, _ = fastdtw(rec_audio_8k / (np.max(rec_audio_8k)), ref_audio_8k / np.max(ref_audio_8k), radius=3)
-        # print(dtw_difference)
-        # aligned_ref_audio = self.ref_audio[self._ref_hitting_frames[0]:]
-        rec_audio = self.rec_audio[:88200]
-        ref_audio = self.ref_audio[:88200]
-        
-        rec_freq_comp, freqs = waveform_to_frequence(rec_audio)
-        ref_freq_comp, freqs = waveform_to_frequence(ref_audio)
+        # mcc_feat_ref = python_speech_features.mfcc(self.ref_audio, self.sr)
+        fbank_feat_ref = python_speech_features.logfbank(self.ref_audio[:88200], self.sr)
 
-        return -min(np.sum((np.abs(rec_freq_comp) - np.abs(ref_freq_comp)) ** 2) / 100000, 50)
+        diff, _ = fastdtw(fbank_feat, fbank_feat_ref, radius=5)
+
+        return diff
 
     def __compute_freqs_diffs(self, ref_audio, rec_audio):
         assert ref_audio.shape == rec_audio.shape, "To compute frequencies difference, ref and rec should have the same shape!"
@@ -135,13 +143,16 @@ class RecRefRewardFunction:
         amplitude_threshold = min(0.5 + 0.1 * self.rollouts // 1000, 0.7)
         return timing_threshold, amplitude_threshold
     
+
     def success_reward(self) -> float:
         '''
         Give this reward only when hitting the desired times, with good timing, and shape
         '''
+        # timing_threshold, amplitude_threshold = self.success_threshold_scheduler()
+        # print(f"timing threshold: {timing_threshold}, amplitude threshold: {amplitude_threshold}")
         return 100 if (
             len(self._rec_hitting_timings) == len(self._ref_hitting_timings) and
-            self.amplitude_reward() > 0.5 and
-            # self.onset_shape_reward() > -10 and
-            self.hitting_timing_reward() > 0.9       # this means the timing error is smaller than 0.5 seconds
+            self.amplitude_reward() > 0.9 and
+            self.onset_shape_reward() > -5 and
+            self.hitting_timing_reward() > 0.9      # this means the timing error is smaller than 0.5 seconds
         ) else 0

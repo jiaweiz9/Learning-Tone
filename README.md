@@ -58,7 +58,7 @@ Download NoiseTorch: [text](https://github.com/noisetorch/NoiseTorch) -->
 ```
 
 // connect pysonic
-rosrun rosserial_python serial_node.py /dev/ttyACM0 _baud:=4000000
+cd ws_music && source devel/setup.bash && rosrun rosserial_python serial_node.py /dev/ttyACM0 _baud:=4000000
 
 cd ws_music && source devel/setup.bash && roslaunch papras_table_demo hw_joint6.launch
 
