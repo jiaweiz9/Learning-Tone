@@ -42,12 +42,14 @@ class VisualizeEpisodeCallback(BaseCallback):
             rec_step_rew = self.training_env.get_attr("step_rewards")[0]
             # self.__visualize_audio(ref_audio, last_rec_audio, rec_chunk_idx, sr=44100)
             self.__visualize_audio_step(ref_audio, last_rec_audio, rec_chunk_idx, rec_step_rew)
+            
 
         return True
 
     def _on_rollout_start(self) -> None:
         # os.system("clear")
         print(f"Rollout {self.num_timesteps // self.visualize_freq} started")
+        self.training_env.set_attr("iteration", self.num_timesteps // self.visualize_freq, 0)
         return super()._on_rollout_start()
 
 

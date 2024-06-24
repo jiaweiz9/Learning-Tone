@@ -63,6 +63,9 @@ class TestPPO:
                 obs = self.normed_vec_env.reset()
                 break
         self.rec_audio = self.normed_vec_env.get_attr("last_rec_audio")[0]
+        import wavio
+        wavio.write("collected_audio.wav", self.rec_audio[:88200], rate=44100, sampwidth=4)
+
         self.ref_audio = self.normed_vec_env.get_attr("ref_audio")[0]
         self.normed_vec_env.close()
 

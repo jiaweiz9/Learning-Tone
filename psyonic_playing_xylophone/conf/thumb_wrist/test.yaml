@@ -15,9 +15,9 @@ reference_audio: "ref_audio/xylophone_keyB/amp045_clip.wav"
 eval_freq: 2000
 
 psyonic:
-  initial_state: [50, 70 , 110, 115, 50, -10]
+  initial_state: [50, 70 , 110, 115, 50, -20]
   max_degree: -10
-  min_degree: -50
+  min_degree: -40
 
 papras_joint6:
   initial_state: [0]
@@ -26,7 +26,7 @@ papras_joint6:
 
 reward_weight:
   amplitude_step: 1
-  movement: 0.0025    # devided by 2 for adding wrist movements
+  movement: 0    # devided by 2 for adding wrist movements
   amplitude: 10
   hitting_times: 10
   onset_shape: 0.5

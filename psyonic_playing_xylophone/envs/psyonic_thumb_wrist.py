@@ -11,6 +11,8 @@ import time, wandb, os
 from psyonic_playing_xylophone.utils.reward_functions import RecRefRewardFunction
 import librosa
 import prettytable as pt
+from sensor_msgs.msg import JointState
+# from psyonic_hand_control.msg import handVal
 
 class PsyonicThumbWristEnv(gym.Env):
 
@@ -31,13 +33,26 @@ class PsyonicThumbWristEnv(gym.Env):
         })
         #self.state = np.zeros(5)
         #self.target = np.random.uniform(-1, 1, (5,))
+        self.iteration = 0
 
+        # self._action_to_thumb_movement = {
+        #     0: -20,
+        #     1: -10,
+        #     2: 0,
+        #     3: 10,
+        #     4: 20
+        # }
+        # self._action_to_thumb_movement = {
+        #     0: -10,
+        #     1: -5,
+        #     2: 0,
+        #     3: 5,
+        #     4: 10
+        # }
         self._action_to_thumb_movement = {
-            0: -20,
-            1: -10,
-            2: 0,
-            3: 10,
-            4: 20
+            0: -5,
+            1: 0,
+            2: 5
         }
 
         self._action_to_wrist_movement = {
@@ -84,10 +99,10 @@ class PsyonicThumbWristEnv(gym.Env):
                          np.cos(2 * np.pi * self.time_step / self.epi_length)])
     
     def __norm_thumb_obs(self, joint):
-        return (joint + 30) / -20
+        return 2 * (joint - self.thumb_min_degree) / (self.thumb_max_degree - self.thumb_min_degree) - 1
     
     def __norm_wrist_obs(self, joint):
-        return (joint - 5) / 5
+        return 2 * (joint - self.wrist_min_degree) / (self.wrist_max_degree - self.wrist_min_degree) - 1
 
     def _get_observation(self):
         return {
@@ -97,6 +112,11 @@ class PsyonicThumbWristEnv(gym.Env):
             'current_wrist_joint': self.__norm_wrist_obs(self.current_wrist_joint) + self.__time_step_embedding()[0],
             'previous_wrist_joint': self.__norm_wrist_obs(self.previous_thumb_joint) + self.__time_step_embedding()[1]
         }
+    
+    # def _get_real_position(self):
+    #     self.current_wrist_joint = rospy.wait_for_message("/joint_states", JointState, 0.5)
+    #     self.current_thumb_joint = rospy.wait_for_message("/robot1/psyonic_hand_vals", handVal, 0.5)
+
     
     def __load_reference_audio(self):
         if self.config["reference_audio"] is None:
@@ -117,14 +137,14 @@ class PsyonicThumbWristEnv(gym.Env):
         if isinstance(self.last_rec_audio, np.ndarray) is False:
             raise ValueError("No valid recorded audio data found")
 
-        print(self.rollouts)
+        # print(self.iteration)
 
         rec_ref_reward = RecRefRewardFunction(
             rec_audio=self.last_rec_audio,
             ref_audio=self.ref_audio,
             episode_length=self.config["epi_length"],
             sr=44100,
-            rollouts=self.rollouts
+            iteration=self.iteration
         )
 
         # Set as attributes for logger to record
@@ -163,6 +183,7 @@ class PsyonicThumbWristEnv(gym.Env):
             self.num_thumb_min_step = 0
 
         self.previous_thumb_joint = self.current_thumb_joint
+        self.previous_wrist_joint = self.current_wrist_joint
         self.current_thumb_joint += self._action_to_thumb_movement[action[0]]
         self.current_wrist_joint += self._action_to_wrist_movement[action[1]]
 
@@ -171,6 +192,7 @@ class PsyonicThumbWristEnv(gym.Env):
                                            self.thumb_min_degree, 
                                            self.thumb_max_degree)
         self.move_distance_curr_epi += abs(self.current_thumb_joint - self.previous_thumb_joint)
+
         self.current_wrist_joint = np.clip(self.current_wrist_joint,
                                            self.wrist_min_degree,
                                            self.wrist_max_degree)
@@ -256,7 +278,7 @@ class PsyonicThumbWristEnv(gym.Env):
             table.add_row(["Num of Min (Thumb)", -self.num_thumb_min_step])
             table.add_row(["Episode moving distance", self.move_distance_curr_epi])
             print(table)
-            self.rollouts += 1
+            # self.rollouts += 1
             
 
         return observation, reward, terminated, False, {}

@@ -104,7 +104,7 @@ class TrainPPO:
         dummy_vec_env = make_vec_env(
             self.env_id, 
             n_envs=1, 
-            seed=0, 
+            seed=config["seed"], 
             wrapper_class=gym.wrappers.FlattenObservation, 
             env_kwargs={
                 "config": config,

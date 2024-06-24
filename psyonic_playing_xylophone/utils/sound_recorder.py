@@ -179,11 +179,17 @@ if __name__ == "__main__":
     # # print(index_list)
     import wavio
     import matplotlib.pyplot as plt
-    wavio.write("collected_audio.wav", data[4410:], rate=44100, sampwidth=4)
     sound_recorder.clear_buffer()
-    time_sequence = np.arange(0, len(data[4410:])) / 44100
+
+    data_fft = np.fft.fft(data[4410:])
+    freqs = np.fft.fftfreq(len(data[4410:]), 1 / 44100)
+    data_fft[np.abs(freqs) < 1000] = 0
+    filtered_data = np.real(np.fft.ifft(data_fft))[:88200]
+    time_sequence = np.arange(0, len(filtered_data)) / 44100
+    wavio.write("collected_audio.wav", filtered_data, rate=44100, sampwidth=4)
+
     plt.figure(figsize=(20, 6))
-    plt.plot(time_sequence, data[4410:], color='red', alpha=0.3)
+    plt.plot(time_sequence, filtered_data, color='red', alpha=0.3)
     plt.show()
 
     # import librosa

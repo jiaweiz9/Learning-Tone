@@ -15,12 +15,12 @@ class RecRefRewardFunction:
                  ref_audio: NDArray[Any]=None, 
                  episode_length: int=100,
                  sr: int=44100,
-                 rollouts: int=0):
+                 iteration: int=0):
         self.rec_audio = rec_audio
         self.ref_audio = ref_audio
         self.episode_length = episode_length
         self.sr = sr
-        self.rollouts = rollouts
+        self.iteration = iteration
 
         self.__check_audio_data()
         self.__generate_audio_strength_info()
@@ -102,7 +102,7 @@ class RecRefRewardFunction:
         diff = self.__mel_filterbank()
         print(diff)
         shape_reward = -min(diff / 1000, 20)
-        print(f"Shape diff: {diff}")
+        # print(f"Shape diff: {diff}")
         return shape_reward
     
     def __mel_filterbank(self):
@@ -139,8 +139,8 @@ class RecRefRewardFunction:
         '''
         This function should return a value between 0 and 1, which will be used to determine the success threshold
         '''
-        timing_threshold = min(0.7 + 0.1 * self.rollouts // 1000, 0.9)
-        amplitude_threshold = min(0.5 + 0.1 * self.rollouts // 1000, 0.7)
+        timing_threshold = min(0.8 + 0.002 * self.iteration, 0.9)
+        amplitude_threshold = min(0.8 + 0.002 * self.iteration, 0.9)
         return timing_threshold, amplitude_threshold
     
 
@@ -148,11 +148,11 @@ class RecRefRewardFunction:
         '''
         Give this reward only when hitting the desired times, with good timing, and shape
         '''
-        # timing_threshold, amplitude_threshold = self.success_threshold_scheduler()
+        timing_threshold, amplitude_threshold = self.success_threshold_scheduler()
         # print(f"timing threshold: {timing_threshold}, amplitude threshold: {amplitude_threshold}")
         return 100 if (
             len(self._rec_hitting_timings) == len(self._ref_hitting_timings) and
             self.amplitude_reward() > 0.9 and
-            self.onset_shape_reward() > -5 and
-            self.hitting_timing_reward() > 0.9      # this means the timing error is smaller than 0.5 seconds
+            self.onset_shape_reward() > -10 and
+            self.hitting_timing_reward() > 0.9     # this means the timing error is smaller than 0.5 seconds
         ) else 0

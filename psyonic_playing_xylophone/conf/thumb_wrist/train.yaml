@@ -5,6 +5,7 @@ n_steps_per_update: 1000  # n steps per update
 n_epochs: 20
 learning_rate: 0.003
 ent_coef: 0.01
+seed: 0
 
 epi_length: 50
 short_epi: True # if False, the episode length is 100
@@ -12,12 +13,12 @@ short_epi: True # if False, the episode length is 100
 reference_audio: "ref_audio/xylophone_keyB/amp045_clip.wav"
 # wandb_run_id: None # if we want to continue training from a previous run, provide the run id here
 # load_model_path: None # if we want to continue training from a previous model, provide the path here
-eval_freq: 2000
+eval_freq: 1000
 
 psyonic:
   initial_state: [50, 70 , 110, 115, 50, -20]
   max_degree: -10
-  min_degree: -40
+  min_degree: -25
 
 papras_joint6:
   initial_state: [0]
@@ -26,7 +27,7 @@ papras_joint6:
 
 reward_weight:
   amplitude_step: 1
-  movement: 0.0025    # devided by 2 for adding wrist movements
+  movement: 0    # devided by 2 for adding wrist movements
   amplitude: 10
   hitting_times: 10
   onset_shape: 0.5

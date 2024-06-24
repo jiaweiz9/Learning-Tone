@@ -198,6 +198,7 @@ def display_audio(ref_audio, rec_audio, sr=44100) -> None:
     plt.figure(figsize=(20, 6))
 
     max_len = max(len(rec_audio), len(ref_audio))
+    print(len(rec_audio))
     ref_audio = np.pad(ref_audio, (0, max_len - len(ref_audio)), 'constant')
     rec_audio = np.pad(rec_audio, (0, max_len - len(rec_audio)), 'constant')
 
@@ -226,10 +227,13 @@ def dtw_similarity(rec_audio: ArrayLike, ref_audio: ArrayLike) -> float:
 
 
 if __name__ == "__main__":
-    rec_audio_path = "ref_audio/xylophone_keyB/amp045_clip.wav"
-    ref_audio_path = "results/audios/0621_1913-l634tcvy/episode_202000.wav"
-    rec_audio, sr = librosa.load(path=rec_audio_path)
-    ref_audio, sr = librosa.load(path=ref_audio_path)
+    rec_audio_path = "ref_audio/xylophone_keyB/amp06.wav"
+    ref_audio_path = "ref_audio/xylophone_keyB/amp03.wav"
+    rec_audio, sr = librosa.load(path=rec_audio_path, sr=44100)
+    ref_audio, sr = librosa.load(path=ref_audio_path, sr=44100)
+
+    print(len(rec_audio), sr)
+    print(len(ref_audio), sr)
 
     # mcc_feat = python_speech_features.mfcc(rec_audio, sr)
     # # d_mfcc_feat = python_speech_features.delta(mcc_feat, 2)
@@ -241,6 +245,7 @@ if __name__ == "__main__":
     # # plt.title('Filter bank')
 
     # # plt.show()
+    # ref_audio = np.pad(ref_audio, (7000, 0), 'constant')
 
     # mcc_feat_ref = python_speech_features.mfcc(ref_audio, sr)
     # # d_mfcc_feat_ref = python_speech_features.delta(mcc_feat, 2)
@@ -261,13 +266,13 @@ if __name__ == "__main__":
     # pdb.set_trace()
 
     # print(dtw_similarity(rec_audio, ref_audio))
-    display_freq_components(rec_audio, ref_audio, sr)
-    data_fft = np.fft.fft(ref_audio)
-    freqs = np.fft.fftfreq(len(ref_audio), 1 / 44100)
-    data_fft[np.abs(freqs) < 2000] = 0
-    filtered_data = np.fft.ifft(data_fft)
+    # display_freq_components(rec_audio, ref_audio, sr)
+    # data_fft = np.fft.fft(ref_audio)
+    # freqs = np.fft.fftfreq(len(ref_audio), 1 / 44100)
+    # data_fft[np.abs(freqs) < 2000] = 0
+    # filtered_data = np.fft.ifft(data_fft)
 
-    # display_audio(rec_audio, filtered_data)
+    display_audio(rec_audio=rec_audio, ref_audio=ref_audio)
     # display_freq_components(rec_audio / np.max(rec_audio), ref_audio / np.max(ref_audio))
     # display_freq_components(rec_audio[:88200] / np.max(rec_audio), ref_audio[:88200] / np.max(ref_audio))
     # amp_freqs = np.abs(waveform_to_frequence(ref_audio))
