@@ -12,9 +12,9 @@ from psyonic_playing_xylophone.utils.reward_functions import RecRefRewardFunctio
 import librosa
 import prettytable as pt
 from sensor_msgs.msg import JointState
-# from psyonic_hand_control.msg import handVal
+from psyonic_hand_control.msg import handVal
 
-class PsyonicThumbWristEnv(gym.Env):
+class PsyonicThumbWristRealEnv(gym.Env):
 
     metadata = {"render_modes": [None]}
 
@@ -30,6 +30,8 @@ class PsyonicThumbWristEnv(gym.Env):
             'previous_thumb_joint': gym.spaces.Box(low=-2, high=2, shape=(1,)),
             'current_wrist_joint': gym.spaces.Box(low=-2, high=2, shape=(1,)),
             'previous_wrist_joint': gym.spaces.Box(low=-2, high=2, shape=(1,)),
+            'desired_thumb_joint': gym.spaces.Box(low=-2, high=2, shape=(1,)),
+            'desired_wrist_joint': gym.spaces.Box(low=-2, high=2, shape=(1,))
         })
         #self.state = np.zeros(5)
         #self.target = np.random.uniform(-1, 1, (5,))
@@ -84,6 +86,8 @@ class PsyonicThumbWristEnv(gym.Env):
         self.previous_thumb_joint = self.initial_thumb_state[-1]
         self.current_wrist_joint = self.initial_wrist_state[-1]
         self.previous_wrist_joint = self.initial_wrist_state[-1]
+        self.desired_thumb_joint = self.initial_thumb_state[-1]
+        self.desired_wrist_joint = self.initial_wrist_state[-1]
 
         self.sound_recorder = SoundRecorder()
         self.reward = 0
@@ -111,16 +115,17 @@ class PsyonicThumbWristEnv(gym.Env):
 
     def _get_observation(self):
         return {
-            # 'time_embedding': self.__time_step_embedding(),
             'current_thumb_joint': self.__norm_thumb_obs(self.current_thumb_joint) + self.__time_step_embedding()[0],
             'previous_thumb_joint': self.__norm_thumb_obs(self.previous_thumb_joint) + self.__time_step_embedding()[1],
             'current_wrist_joint': self.__norm_wrist_obs(self.current_wrist_joint) + self.__time_step_embedding()[0],
-            'previous_wrist_joint': self.__norm_wrist_obs(self.previous_wrist_joint) + self.__time_step_embedding()[1]
+            'previous_wrist_joint': self.__norm_wrist_obs(self.previous_wrist_joint) + self.__time_step_embedding()[1],
+            'desired_thumb_joint': self.__norm_thumb_obs(self.desired_thumb_joint) + self.__time_step_embedding()[0],
+            'desired_wrist_joint': self.__norm_wrist_obs(self.desired_wrist_joint) + self.__time_step_embedding()[1]
         }
     
-    # def _get_real_position(self):
-    #     self.current_wrist_joint = rospy.wait_for_message("/joint_states", JointState, 0.5)
-    #     self.current_thumb_joint = rospy.wait_for_message("/robot1/psyonic_hand_vals", handVal, 0.5)
+    def _get_real_position(self):
+        self.current_wrist_joint = rospy.wait_for_message("/joint_states", JointState, 0.1).position[-1]
+        self.current_thumb_joint = rospy.wait_for_message("/robot1/psyonic_hand_vals", handVal, 0.1).positions[-1]
 
     
     def __load_reference_audio(self):
@@ -187,27 +192,30 @@ class PsyonicThumbWristEnv(gym.Env):
             self.step_rewards=[]
             self.num_thumb_min_step = 0
 
-        self.previous_thumb_joint = self.current_thumb_joint
-        self.previous_wrist_joint = self.current_wrist_joint
-        self.current_thumb_joint += self._action_to_thumb_movement[action[0]]
-        # self.current_thumb_joint = self._action_to_thumb_movement[action[0]]
-        self.current_wrist_joint += self._action_to_wrist_movement[action[1]]
+        # self.current_thumb_joint += self._action_to_thumb_movement[action[0]]
+        # # self.current_thumb_joint = self._action_to_thumb_movement[action[0]]
+        # self.current_wrist_joint += self._action_to_wrist_movement[action[1]]
+        self.desired_thumb_joint = self.current_thumb_joint + self._action_to_thumb_movement[action[0]]
+        self.desired_wrist_joint = self.current_wrist_joint + self._action_to_wrist_movement[action[1]]
 
         # Clip the thumb and wrist joint command to make it within the feasible range
-        self.current_thumb_joint = np.clip(self.current_thumb_joint,
+        self.desired_thumb_joint = np.clip(self.desired_thumb_joint,
                                            self.thumb_min_degree, 
                                            self.thumb_max_degree)
-        self.move_distance_curr_epi += abs(self.current_thumb_joint - self.previous_thumb_joint)
+        self.move_distance_curr_epi += abs(self.desired_thumb_joint - self.current_thumb_joint)
 
-        self.current_wrist_joint = np.clip(self.current_wrist_joint,
+        self.desired_wrist_joint = np.clip(self.desired_wrist_joint,
                                            self.wrist_min_degree,
                                            self.wrist_max_degree)
-        self.move_distance_curr_epi += abs(self.current_wrist_joint - self.previous_wrist_joint) * 100
-
-
+        self.move_distance_curr_epi += abs(self.desired_wrist_joint - self.current_wrist_joint) * 100
         next_thumb_movement, next_wrist_movement = self.get_state()
-        # self.thumb_pos_publisher.publish_once(next_thumb_movement)
         self.wrist_pos_publisher.publish_once(next_thumb_movement, next_wrist_movement)
+
+        self.previous_thumb_joint = self.current_thumb_joint
+        self.previous_wrist_joint = self.current_wrist_joint
+        self._get_real_position()
+
+        # self.thumb_pos_publisher.publish_once(next_thumb_movement)
 
         curr_step_rec_audio, chunk_index = self.sound_recorder.get_last_step_audio()
         curr_step_ref_audio = self.ref_audio[chunk_index * 882 : (chunk_index + 1) * 882]
@@ -286,6 +294,7 @@ class PsyonicThumbWristEnv(gym.Env):
             table.add_row(["Num of Min (Thumb)", -self.num_thumb_min_step])
             table.add_row(["Episode moving distance", self.move_distance_curr_epi])
             print(table)
+            print(f"last observation {observation}")
             # self.rollouts += 1
             
 
@@ -300,14 +309,15 @@ class PsyonicThumbWristEnv(gym.Env):
         self.move_distance_curr_epi = 0
 
         # self.thumb_pos_publisher.publish_once(self.initial_thumb_state)
-        self.current_thumb_joint = self.initial_thumb_state[-1]
-        self.current_wrist_joint = self.initial_wrist_state[-1]
+        self._get_real_position()
         print("Initial thumb joint: ", self.current_thumb_joint)
         print("Initial wrist joint: ", self.current_wrist_joint)
         # self.sound_recorder.start_recording()
 
-        self.previous_thumb_joint = self.current_thumb_joint
-        self.previous_wrist_joint = self.current_wrist_joint
+        self.previous_thumb_joint = 0
+        self.previous_wrist_joint = -0.1
+        self.desired_thumb_joint = self.initial_thumb_state[-1]
+        self.desired_wrist_joint = self.initial_wrist_state[-1]
         # self.last_chunk_idx = []
         # self.last_rec_audio = None
         # self.target = np.random.uniform(-1, 1, (5,))
@@ -317,8 +327,8 @@ class PsyonicThumbWristEnv(gym.Env):
 
     def get_state(self) -> ArrayLike:
         # using current command as joint state (Note: this is not the actual joint state)
-        return np.concatenate([self.initial_thumb_state[:-1], [self.current_thumb_joint]], axis=0), \
-                np.concatenate([self.initial_wrist_state[:-1], [self.current_wrist_joint]], axis=0)
+        return np.concatenate([self.initial_thumb_state[:-1], [self.desired_thumb_joint]], axis=0), \
+                np.concatenate([self.initial_wrist_state[:-1], [self.desired_wrist_joint]], axis=0)
     
     def close(self):
         del self.sound_recorder
@@ -356,7 +366,7 @@ if __name__ == "__main__":
         }
     
     # print(os.path.realpath(__file__))
-    env = PsyonicThumbWristEnv(config=config)
+    env = PsyonicThumbWristRealEnv(config=config)
     env = gym.wrappers.FlattenObservation(env)
 
     obs, info = env.reset()

@@ -47,6 +47,8 @@ class TrainPPO:
         # self.env = gym.wrappers.FlattenObservation(self.env)
         # self.dummy_vec_env = DummyVecEnv([make_env(self.env_id, config)])
         self.train_vec_env = self._make_normed_vec_env(config)
+        # print(self.train_vec_env.observation_space)
+        # print(self.train_vec_env.reset())
         self.eval_vec_env = self._make_normed_vec_env(config)
 
         # Prepare the environment for training

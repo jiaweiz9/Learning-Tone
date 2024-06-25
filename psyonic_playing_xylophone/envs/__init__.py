@@ -13,3 +13,9 @@ register(
     entry_point="psyonic_playing_xylophone.envs.psyonic_thumb_wrist:PsyonicThumbWristEnv",
     max_episode_steps=100,
 )
+
+register(
+    id="PsyonicThumbWristRealEnv-v0",
+    entry_point="psyonic_playing_xylophone.envs.psyonic_thumb_wrist_real:PsyonicThumbWristRealEnv",
+    max_episode_steps=100,
+)

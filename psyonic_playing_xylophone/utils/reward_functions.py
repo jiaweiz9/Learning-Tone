@@ -152,7 +152,7 @@ class RecRefRewardFunction:
         # print(f"timing threshold: {timing_threshold}, amplitude threshold: {amplitude_threshold}")
         return 100 if (
             len(self._rec_hitting_timings) == len(self._ref_hitting_timings) and
-            self.amplitude_reward() > 0.9 and
+            self.amplitude_reward() > 0.7 and
             self.onset_shape_reward() > -10 and
             self.hitting_timing_reward() > 0.9     # this means the timing error is smaller than 0.5 seconds
         ) else 0

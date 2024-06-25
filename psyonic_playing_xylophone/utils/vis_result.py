@@ -48,8 +48,7 @@ class VisualizeEpisodeCallback(BaseCallback):
 
     def _on_rollout_start(self) -> None:
         # os.system("clear")
-        print(f"Rollout {self.num_timesteps // self.visualize_freq} started")
-        self.training_env.set_attr("iteration", self.num_timesteps // self.visualize_freq, 0)
+        
         return super()._on_rollout_start()
 
 
