@@ -60,7 +60,7 @@ class TrainPPO:
                 project="Psyonic_Playing_Xylophone-sb3",
                 config=config,
                 sync_tensorboard=True,
-                group="thumb_wrist_sb3",
+                group="thumb_sb3",
                 tags=["ppo"],
                 resume="allow",
                 id=self.wandb_run_id # Note: We can continue the logging in wandb, but cannot do the same in other results logging (tensorboard, figures, models, etc.)
@@ -185,7 +185,7 @@ class TrainPPO:
     
 
 
-@hydra.main(version_base=None, config_path="psyonic_playing_xylophone/conf/thumb_wrist", config_name="train")
+@hydra.main(version_base=None, config_path="psyonic_playing_xylophone/conf/psyonic_thumb", config_name="train")
 def launch_train(cfg: DictConfig):
     # print(cfg)
     cfg = OmegaConf.to_container(cfg)

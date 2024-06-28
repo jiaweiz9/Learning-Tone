@@ -72,6 +72,8 @@ data:
 - 0
 "
 
+wrist position for thumb-control: 0
+
 rostopic pub robot1/psyonic_controller std_msgs/Float32MultiArray "layout:
   dim:
   - label: ''

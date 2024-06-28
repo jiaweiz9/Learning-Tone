@@ -13,6 +13,8 @@ import librosa
 import prettytable as pt
 from sensor_msgs.msg import JointState
 from psyonic_hand_control.msg import handVal
+from psyonic_playing_xylophone.ros_interfaces.subscriber import HandValueSubscriber, PAPRASJoint6PosSubscriber
+
 
 class PsyonicThumbWristRealEnv(gym.Env):
 
@@ -22,7 +24,7 @@ class PsyonicThumbWristRealEnv(gym.Env):
         super().__init__()
         self.config = config
         # action space: 0 := -10, 1 := no change, 2 := +10
-        self.action_space = gym.spaces.MultiDiscrete([6, 5])
+        self.action_space = gym.spaces.Box(low=-1, high=1, shape=(1,))
 
         self.observation_space = gym.spaces.Dict({
             # 'time_embedding': gym.spaces.Box(low=-1, high=1, shape=(2,)),
@@ -37,38 +39,24 @@ class PsyonicThumbWristRealEnv(gym.Env):
         #self.target = np.random.uniform(-1, 1, (5,))
         self.iteration = 0
 
-        self._action_to_thumb_movement = {
-            0: -20,
-            1: -10,
-            2: 0,
-            3: 5,
-            4: 10,
-            5: 20
-        }
         # self._action_to_thumb_movement = {
-        #     0: -10,
-        #     1: -5,
+        #     0: -20,
+        #     1: -10,
         #     2: 0,
         #     3: 5,
-        #     4: 10
-        # }
-        # self._action_to_thumb_movement = {
-        #     0: -5,
-        #     1: 0,
-        #     2: 5
-        # }
-        # self._action_to_thumb_movement = {
-        #     0: -10,
-        #     1: -20
+        #     4: 10,
+        #     5: 20
         # }
 
-        self._action_to_wrist_movement = {
-            0: -0.075,
-            1: -0.0375,
-            2: 0,
-            3: 0.0375,
-            4: 0.075
-        }
+        # self._action_to_wrist_movement = {
+        #     0: -0.075,
+        #     1: -0.0375,
+        #     2: 0,
+        #     3: 0.0375,
+        #     4: 0.075
+        # }
+        self._action_to_thumb_movement = lambda x: 20 * x
+        self._action_to_wrist_movement = lambda x: 0.075 * x
 
         self.initial_thumb_state = config["psyonic"]["initial_state"]
         self.initial_wrist_state = config["papras_joint6"]["initial_state"]
@@ -124,8 +112,8 @@ class PsyonicThumbWristRealEnv(gym.Env):
         }
     
     def _get_real_position(self):
-        self.current_wrist_joint = rospy.wait_for_message("/joint_states", JointState, 0.1).position[-1]
-        self.current_thumb_joint = rospy.wait_for_message("/robot1/psyonic_hand_vals", handVal, 0.1).positions[-1]
+        self.current_thumb_joint = self.hand_thumb_pos_sub.data
+        self.current_wrist_joint = self.papras_joint6_pos_sub.data
 
     
     def __load_reference_audio(self):
@@ -141,6 +129,8 @@ class PsyonicThumbWristRealEnv(gym.Env):
         rospy.init_node('psyonic_control', anonymous=True)
         # self.thumb_pos_publisher = QPosPublisher()
         self.wrist_pos_publisher = PAPRASJoint6PosPublisher()
+        self.hand_thumb_pos_sub = HandValueSubscriber()
+        self.papras_joint6_pos_sub = PAPRASJoint6PosSubscriber()
 
 
     def __episode_end_reward(self):
@@ -192,9 +182,6 @@ class PsyonicThumbWristRealEnv(gym.Env):
             self.step_rewards=[]
             self.num_thumb_min_step = 0
 
-        # self.current_thumb_joint += self._action_to_thumb_movement[action[0]]
-        # # self.current_thumb_joint = self._action_to_thumb_movement[action[0]]
-        # self.current_wrist_joint += self._action_to_wrist_movement[action[1]]
         self.desired_thumb_joint = self.current_thumb_joint + self._action_to_thumb_movement[action[0]]
         self.desired_wrist_joint = self.current_wrist_joint + self._action_to_wrist_movement[action[1]]
 

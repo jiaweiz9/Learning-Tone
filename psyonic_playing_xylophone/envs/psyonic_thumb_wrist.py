@@ -63,9 +63,11 @@ class PsyonicThumbWristEnv(gym.Env):
         self._action_to_wrist_movement = {
             0: -0.075,
             1: -0.0375,
-            2: 0,
-            3: 0.0375,
-            4: 0.075
+            2: -0.01875,
+            3: 0,
+            4: 0.01875,
+            5: 0.0375,
+            6: 0.075
         }
 
         self.initial_thumb_state = config["psyonic"]["initial_state"]
@@ -248,7 +250,7 @@ class PsyonicThumbWristEnv(gym.Env):
         
         # 2. reward for thumb reducing shaking
         reward += -(abs(self.current_thumb_joint - self.previous_thumb_joint) + 
-                    abs(self.current_wrist_joint - self.previous_wrist_joint) * 100) \
+                    abs(self.current_wrist_joint - self.previous_wrist_joint) * 200) \
                     * self.config["reward_weight"]["movement"]
         
         # if self.previous_thumb_joint == self.thumb_min_degree and self.current_thumb_joint == self.thumb_min_degree:

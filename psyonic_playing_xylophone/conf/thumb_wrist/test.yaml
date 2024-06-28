@@ -9,7 +9,7 @@ ent_coef: 0.01
 epi_length: 50
 short_epi: True # if False, the episode length is 100
 
-reference_audio: "ref_audio/xylophone_keyB/amp06.wav"
+reference_audio: "ref_audio/xylophone_keyB/amp06_025.wav"
 # wandb_run_id: None # if we want to continue training from a previous run, provide the run id here
 # load_model_path: None # if we want to continue training from a previous model, provide the path here
 eval_freq: 2000

@@ -160,7 +160,7 @@ def visualize_audio(data, sr):
 if __name__ == "__main__":
     sound_recorder = SoundRecorder()
     sound_recorder.start_recording()
-    time.sleep(0.1)
+    # time.sleep(0.1)
     # time.sleep(5)
     # data = sound_recorder.get_current_buffer()
     # print(len(data)//882)
@@ -181,8 +181,8 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     sound_recorder.clear_buffer()
 
-    data_fft = np.fft.fft(data[4410:])
-    freqs = np.fft.fftfreq(len(data[4410:]), 1 / 44100)
+    data_fft = np.fft.fft(data)
+    freqs = np.fft.fftfreq(len(data), 1 / 44100)
     data_fft[np.abs(freqs) < 1000] = 0
     filtered_data = np.real(np.fft.ifft(data_fft))[:88200]
     time_sequence = np.arange(0, len(filtered_data)) / 44100

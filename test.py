@@ -52,21 +52,21 @@ class TestPPO:
         self.model = PPO.load(self.load_model_path, device=self.device)
         self.model.set_env(self.normed_vec_env) 
 
-    def do_predict(self):
+    def do_predict(self, iter=1):
         obs = self.normed_vec_env.reset()
         print(f"init obs {obs}")
-        for _ in range(self.epi_length):
-            action, _ = self.model.predict(obs, deterministic=True)
-            print(action)
-            obs, reward, done, info = self.normed_vec_env.step(action)
-            if done:
-                obs = self.normed_vec_env.reset()
-                break
-        self.rec_audio = self.normed_vec_env.get_attr("last_rec_audio")[0]
+        for i in range(iter):
+            for _ in range(self.epi_length):
+                action, _ = self.model.predict(obs, deterministic=True)
+                print(action)
+                obs, reward, done, info = self.normed_vec_env.step(action)
+                if done:
+                    obs = self.normed_vec_env.reset()
+                    break
+            self.rec_audio = self.normed_vec_env.get_attr("last_rec_audio")[0]
+            self.ref_audio = self.normed_vec_env.get_attr("ref_audio")[0]
         import wavio
-        wavio.write("collected_audio.wav", self.rec_audio[:88200], rate=44100, sampwidth=4)
-
-        self.ref_audio = self.normed_vec_env.get_attr("ref_audio")[0]
+        wavio.write(f"predicted_audio.wav", self.rec_audio[:88200], rate=44100, sampwidth=4)
         self.normed_vec_env.close()
 
     def _visualize_audio_step(self, sr=44100) -> None:

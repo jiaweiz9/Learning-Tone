@@ -62,8 +62,8 @@ class RecRefRewardFunction:
         # self._ref_onset_strength_envelop /= np.max(self._ref_onset_strength_envelop)
 
         # Filter out the small onset strength values
-        self._rec_onset_strength_envelop[self._rec_onset_strength_envelop < 7] = 0
-        self._ref_onset_strength_envelop[self._ref_onset_strength_envelop < 7] = 0
+        self._rec_onset_strength_envelop[self._rec_onset_strength_envelop < 10] = 0
+        self._ref_onset_strength_envelop[self._ref_onset_strength_envelop < 10] = 0
 
         # Get the hitting timings from the onset strength envelop
         self._rec_hitting_timings = librosa.onset.onset_detect(onset_envelope=self._rec_onset_strength_envelop, sr=self.sr, units='time', normalize=True)
@@ -85,6 +85,19 @@ class RecRefRewardFunction:
         # max_amp = max(self.rec_max_amp, self.ref_max_amp)
         # return np.exp(-max_amp_diff * 10)
         return 1 - max_amp_diff / self.ref_max_amp if max_amp_diff < self.ref_max_amp else 0
+    
+    def double_hit_amp_reward(self):
+        assert len(self._rec_hitting_frames) == 2 and len(self._ref_hitting_frames) == 2
+        rec_hit_mid_frame = (self._rec_hitting_frames[0] + self._rec_hitting_frames[1]) / 2
+        ref_hit_mid_frame = (self._ref_hitting_frames[0] + self._ref_hitting_frames[1]) / 2
+        rec_amp_1 = np.max(abs(self.rec_audio[:rec_hit_mid_frame]))
+        rec_amp_2 = np.max(abs(self.rec_audio[rec_hit_mid_frame:]))
+        print(f"recorded audio hitting amplitude: {[rec_amp_1, rec_amp_2]}")
+
+        rec_amp_1 = np.max(abs(self.ref_audio[:rec_hit_mid_frame]))
+        rec_amp_2 = np.max(abs(self.ref_audio[rec_hit_mid_frame:]))
+        print(f"reference audio hitting amplitude: {[rec_amp_1, rec_amp_2]}")
+
 
 
     def hitting_times_reward(self) -> float:
@@ -107,10 +120,10 @@ class RecRefRewardFunction:
     
     def __mel_filterbank(self):
         # mcc_feat = python_speech_features.mfcc(self.rec_audio, self.sr)
-        fbank_feat = python_speech_features.logfbank(self.rec_audio[:88200], self.sr)
+        fbank_feat = python_speech_features.logfbank(self.rec_audio[:88200] / self.rec_max_amp, self.sr)
 
         # mcc_feat_ref = python_speech_features.mfcc(self.ref_audio, self.sr)
-        fbank_feat_ref = python_speech_features.logfbank(self.ref_audio[:88200], self.sr)
+        fbank_feat_ref = python_speech_features.logfbank(self.ref_audio[:88200] / self.ref_max_amp, self.sr)
 
         diff, _ = fastdtw(fbank_feat, fbank_feat_ref, radius=5)
 
@@ -152,7 +165,13 @@ class RecRefRewardFunction:
         # print(f"timing threshold: {timing_threshold}, amplitude threshold: {amplitude_threshold}")
         return 100 if (
             len(self._rec_hitting_timings) == len(self._ref_hitting_timings) and
-            self.amplitude_reward() > 0.7 and
+            self.amplitude_reward() > 0.8 and
             self.onset_shape_reward() > -10 and
             self.hitting_timing_reward() > 0.9     # this means the timing error is smaller than 0.5 seconds
         ) else 0
+    
+def step_amp_reward(prev_setp_rec_audio, step_rec_audio, onset_threshold, ref_audio):
+    # TODO: New Step Amp Reward
+    if np.mean(abs(step_rec_audio)) - np.mean(abs(prev_setp_rec_audio)) > onset_threshold:
+        pass
+    pass

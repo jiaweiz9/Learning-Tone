@@ -82,6 +82,26 @@ class SoundPublisher():
                 break
 
 
+class ThumbPosPublisherDebug():
+    def __init__(self):
+        self.qpos_pub = rospy.Publisher('robot1/psyonic_thumb_observation', Float64MultiArray, queue_size=1000)
+    
+    def run(self, data):
+        self.qpos_pub.publish(data)
+    
+    def publish_once(self, data):
+        data = rnm.to_multiarray_f64(data)
+        while not rospy.is_shutdown():
+            rate = rospy.Rate(50) # 50HZ
+            connections = self.qpos_pub.get_num_connections()
+            # print(connections)
+            if connections > 0:
+                self.run(data)
+                # rospy.loginfo('Qpos published')
+                rate.sleep()
+                break
+
+
 class QPosPublisher():
     def __init__(self):
         self.qpos_pub = rospy.Publisher('robot1/psyonic_controller', Float32MultiArray, queue_size=1000)\

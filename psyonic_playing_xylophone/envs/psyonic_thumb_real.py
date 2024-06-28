@@ -5,7 +5,7 @@ from numpy.typing import ArrayLike
 import torch
 from typing import Dict, Any, Tuple
 from psyonic_playing_xylophone.utils.sound_recorder import SoundRecorder
-from psyonic_playing_xylophone.ros_interfaces.publisher import QPosPublisher
+from psyonic_playing_xylophone.ros_interfaces.publisher import QPosPublisher, ThumbPosPublisherDebug
 import rospy
 import time, wandb, os
 from psyonic_playing_xylophone.utils.reward_functions import RecRefRewardFunction
@@ -13,7 +13,11 @@ import librosa
 import prettytable as pt
 import random
 
-class PsyonicThumbEnv(gym.Env):
+from psyonic_hand_control.msg import handVal
+from psyonic_playing_xylophone.ros_interfaces.subscriber import HandValueSubscriber, PAPRASJoint6PosSubscriber
+
+
+class PsyonicThumbRealEnv(gym.Env):
 
     metadata = {"render_modes": [None]}
 
@@ -21,24 +25,15 @@ class PsyonicThumbEnv(gym.Env):
         super().__init__()
         self.config = config
         # action space: 0 := -10, 1 := no change, 2 := +10
-        self.action_space = gym.spaces.Discrete(6)
+        self.action_space = gym.spaces.Box(low=-1, high=1, shape=(1,))
 
         self.observation_space = gym.spaces.Dict({
             # 'time_embedding': gym.spaces.Box(low=-1, high=1, shape=(2,)),
             'current_thumb_joint': gym.spaces.Box(low=-2, high=2, shape=(1,)),
             'previous_thumb_joint': gym.spaces.Box(low=-2, high=2, shape=(1,))
         })
-        #self.state = np.zeros(5)
-        #self.target = np.random.uniform(-1, 1, (5,))
 
-        self._action_to_joint_movement = {
-            0: -20,
-            1: -10,
-            2: 0,
-            3: 5,
-            4: 10,
-            5: 20,
-        }
+        self._action_to_joint_movement = lambda x: 20 * x
 
         self.initial_joints_state = config["psyonic"]["initial_state"]
         if isinstance(self.initial_joints_state, np.ndarray) is False:
@@ -82,6 +77,10 @@ class PsyonicThumbEnv(gym.Env):
             'previous_thumb_joint': self.__norm_obs(self.previous_thumb_joint) + self.__time_step_embedding()[1],
         }
     
+    def _get_real_position(self):
+        # self.current_thumb_joint = rospy.wait_for_message("/robot1/psyonic_hand_vals", handVal, 0.1).positions[-1]
+        self.current_thumb_joint = self.hand_thumb_pos_sub.data
+    
     def __load_reference_audio(self):
         if self.config["reference_audio"] is None:
             ref_audio_path = "ref_audio/ref_high.wav"
@@ -94,6 +93,8 @@ class PsyonicThumbEnv(gym.Env):
     def __setup_command_publisher(self):
         rospy.init_node('psyonic_control', anonymous=True)
         self.qpos_publisher = QPosPublisher()
+        self.hand_thumb_pos_sub = HandValueSubscriber()
+        self.thumb_debug_pub = ThumbPosPublisherDebug()
 
     def __episode_end_reward(self):
         if isinstance(self.last_rec_audio, np.ndarray) is False:
@@ -142,23 +143,19 @@ class PsyonicThumbEnv(gym.Env):
             self.step_rewards=[]
 
         self.previous_thumb_joint = self.current_thumb_joint
-        self.current_thumb_joint += self._action_to_joint_movement[action]
+        self.current_thumb_joint += self._action_to_joint_movement(action[0])
 
         # Clip the thumb joint command to make it within the feasible range
         self.current_thumb_joint = np.clip(self.current_thumb_joint,
                                            self.min_degree, 
                                            self.max_degree)
         self.move_distance_curr_epi += abs(self.current_thumb_joint - self.previous_thumb_joint)
-        # print(
-        #     "time step", self.time_step,
-        #     "cur action", action,
-        #     "cur joint movement", self._action_to_joint_movement[action],
-        #     "prev thumb joint: ", self.previous_thumb_joint,
-        #     "next thumb joint: ", self.current_thumb_joint
-        #     )
+
         next_movement = self.get_state()
         self.qpos_publisher.publish_once(next_movement)
+        # print("command published")
         curr_step_rec_audio, chunk_index = self.sound_recorder.get_last_step_audio()
+        # print("got last audio")
         curr_step_ref_audio = self.ref_audio[chunk_index * 882 : (chunk_index + 1) * 882]
 
         self.last_chunk_idx.append(chunk_index)
@@ -172,7 +169,6 @@ class PsyonicThumbEnv(gym.Env):
             audio_data = self.sound_recorder.get_episode_audio().squeeze()[4410:]
             #self.sound_recorder.save_recording()
 
-            # High-pass filter for recorded audio
             data_fft = np.fft.fft(audio_data)
             freqs = np.fft.fftfreq(len(data_fft), 1 / 44100)
             data_fft[np.abs(freqs) < 1000] = 0
@@ -183,6 +179,8 @@ class PsyonicThumbEnv(gym.Env):
             self.last_chunk_idx = np.array(self.last_chunk_idx)
             self.last_chunk_idx = self.last_chunk_idx - self.last_chunk_idx[0]
 
+        self._get_real_position()
+        # print("got real position")
         observation = self._get_observation()
 
         # Calculate rewards
@@ -224,9 +222,9 @@ class PsyonicThumbEnv(gym.Env):
             table.add_row(["Moving back", moving_back_reward])
             table.add_row(["Episode moving distance", self.move_distance_curr_epi])
             print(table)
-            print(reward)
             
-
+        # self.thumb_debug_pub.publish_once(np.array([self.previous_thumb_joint, self.current_thumb_joint]))
+        # print("publish debug info")
         return observation, reward, terminated, False, {}
 
 
@@ -242,20 +240,20 @@ class PsyonicThumbEnv(gym.Env):
         else:
             self.current_thumb_joint = self.initial_joints_state[-1]
         self.qpos_publisher.publish_once(self.get_state())
-        print("Initial thumb joint: ", self.current_thumb_joint)
         time.sleep(0.5)
+        self._get_real_position()
+        print("Initial thumb joint: ", self.current_thumb_joint)
 
         # self.sound_recorder.start_recording()
 
         self.previous_thumb_joint = self.current_thumb_joint
-        # self.last_chunk_idx = []
-        # self.last_rec_audio = None
-        # self.target = np.random.uniform(-1, 1, (5,))
-        # print(self._get_observation())
+        # self.thumb_debug_pub.publish_once(np.array([self.previous_thumb_joint, self.current_thumb_joint]))
+        # print("debug publish")
         return self._get_observation(), {}
 
 
     def get_state(self) -> ArrayLike:
+        # print(self.current_thumb_joint)
         # using current command as joint state (Note: this is not the actual joint state)
         return np.concatenate([self.initial_joints_state[:-1],
                                [self.current_thumb_joint]],
@@ -287,7 +285,7 @@ if __name__ == "__main__":
         }
     
     # print(os.path.realpath(__file__))
-    env = PsyonicThumbEnv(config=config)
+    env = PsyonicThumbRealEnv(config=config)
     env = gym.wrappers.FlattenObservation(env)
 
     obs, info = env.reset()
