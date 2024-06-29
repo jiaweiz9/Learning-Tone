@@ -155,13 +155,94 @@ class RewardUtils:
         ) else 0
     
 
-    def step_amp_reward(self, prev_setp_rec_audio, step_rec_audio, cur_step, onset_threshold=0.1, frame_range=4410):
+    def step_amp_reward(self, prev_step_rec_audio, step_rec_audio, cur_step, onset_threshold=0.1, frame_range=4410):
         '''
             New step reward: 
             if current step amplitude is louder enough than the previous one (considered as one hitting), 
         '''
-        if np.mean(abs(step_rec_audio)) - np.mean(abs(prev_setp_rec_audio)) > onset_threshold:
-            for hitting_frame in self._rec_hitting_frames:
+        if np.max(abs(step_rec_audio)) - np.max(abs(prev_step_rec_audio)) > onset_threshold:
+            for hitting_frame in self._ref_hitting_frames:
                 if hitting_frame - frame_range <= cur_step * len(step_rec_audio) <= hitting_frame + frame_range:
                     return 0
             return -1
+        else:
+            return 0
+
+
+
+
+
+def __visualize_audio_step(ref_audio, rec_audio, rec_idx, step_rew, sr=44100) -> None:
+        import matplotlib.pyplot as plt
+        import os
+
+        plt.figure(figsize=(20, 6))
+        max_len = max(len(rec_audio), len(ref_audio))
+        ref_audio = np.pad(ref_audio, (0, max_len - len(ref_audio)), 'constant')
+        rec_audio = np.pad(rec_audio, (0, max_len - len(rec_audio)), 'constant')
+
+        time = np.arange(0, max_len) / sr
+
+        plt.plot(time, rec_audio, color='blue', alpha=0.3)
+        plt.plot(time, ref_audio, color='red', alpha=0.3)
+
+        rec_idx = rec_idx * 0.025
+        plt.scatter(rec_idx, step_rew, color='black', marker='x')
+
+        # plt.title(f'Episode {rec_idx} - Reference Audio (red) vs. Recorded Audio (blue)')
+        plt.xlabel('Time (s)')
+        plt.ylabel('Amplitude')
+        plt.legend(['Recorded Audio', 'Reference Audio', 'Step Reward'])
+
+        # file_name = f"episode_{self.num_timesteps}.png"
+        # img_path = os.path.join(self.figures_path, file_name)
+        # plt.savefig(img_path)
+        plt.show()
+        plt.close()
+
+        # if not os.path.exists(f"results/audios/{self.folder_name}"):
+        #     os.makedirs(f"results/audios/{self.folder_name}")
+        # wavio.write(f"results/audios/{self.folder_name}/episode_{self.num_timesteps}.wav", rec_audio[:88200], rate=44100, sampwidth=4)
+
+
+
+
+
+
+
+
+if __name__ == "__main__":
+    ref_audio, _ = librosa.load("ref_audio/xylophone_keyB/amp06_013.wav", sr=44100)
+
+    reward_utils = RewardUtils(
+        ref_audio=ref_audio,
+        episode_length=50,
+        sr=44100,
+    )
+
+    rec_audio, _ = librosa.load("results/audios/0628_1919-97ukixlk/episode_4000.wav", sr=44100)
+
+    rec_idx = np.arange(50)
+    rec_step_rews = []
+    prev_step_rec_audio = step_rec_audio = 0
+    for i in rec_idx:
+        prev_step_rec_audio = step_rec_audio
+        step_rec_audio = rec_audio[i * 1100 : (i+1) * 1100]
+        step_rew = reward_utils.step_amp_reward(
+            prev_setp_rec_audio=prev_step_rec_audio,
+            step_rec_audio=step_rec_audio,
+            cur_step=i,
+            onset_threshold=0.1,
+            frame_range=2205
+        )
+        rec_step_rews.append(step_rew)
+    
+    print(rec_idx)
+    print(rec_step_rews)
+    __visualize_audio_step(
+        ref_audio=ref_audio,
+        rec_audio=rec_audio,
+        rec_idx=rec_idx,
+        step_rew=rec_step_rews,
+        sr=44100
+    )

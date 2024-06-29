@@ -5,7 +5,7 @@ n_steps_per_update: 1000  # n steps per update
 
 epi_length: 50
 short_epi: True
-reference_audio: "ref_audio/xylophone_keyB/amp043_05.wav"
+reference_audio: "ref_audio/xylophone_keyB/amp06_013.wav"
 
 eval_freq: 10000
 # wandb_run_id: None # if we want to continue training from a previous run, provide the run id here

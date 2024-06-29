@@ -227,8 +227,8 @@ def dtw_similarity(rec_audio: ArrayLike, ref_audio: ArrayLike) -> float:
 
 
 if __name__ == "__main__":
-    rec_audio_path = "ref_audio/xylophone_keyB/amp06_025.wav"
-    ref_audio_path = "results/eval/demo/0628_0058-ljvfxzz0/predicted_audio.wav"
+    rec_audio_path = "ref_audio/xylophone_keyB/amp08_025.wav"
+    ref_audio_path = "ref_audio/xylophone_keyB/amp06_025.wav"
     rec_audio, sr = librosa.load(path=rec_audio_path, sr=44100)
     ref_audio, sr = librosa.load(path=ref_audio_path, sr=44100)
 
@@ -245,7 +245,6 @@ if __name__ == "__main__":
     # # plt.title('Filter bank')
 
     # # plt.show()
-    # ref_audio = np.pad(ref_audio, (3000, 0), 'constant')
 
     # mcc_feat_ref = python_speech_features.mfcc(ref_audio, sr)
     # # d_mfcc_feat_ref = python_speech_features.delta(mcc_feat, 2)
@@ -261,25 +260,30 @@ if __name__ == "__main__":
 
     # print(test[0])
 
+    ############### Remove low freq noise #######################
+    # data_fft = np.fft.fft(ref_audio)
+    # freqs = np.fft.fftfreq(len(ref_audio), 1 / 44100)
+    # data_fft[np.abs(freqs) < 1000] = 0
+    # ref_filtered_data = np.fft.ifft(data_fft)
 
-    # import pdb 
-    # pdb.set_trace()
-
-    # print(dtw_similarity(rec_audio, ref_audio))
-    # display_freq_components(rec_audio, ref_audio, sr)
     # data_fft = np.fft.fft(rec_audio)
     # freqs = np.fft.fftfreq(len(rec_audio), 1 / 44100)
     # data_fft[np.abs(freqs) < 1000] = 0
-    # filtered_data = np.fft.ifft(data_fft)
-    # rec_audio[:10000] = 0
+    # rec_filtered_data = np.fft.ifft(data_fft)
+    
 
-    # import wavio
-    # wavio.write("clipped_audio.wav", data=ref_audio[:88200], rate=44100, sampwidth=4)
-    display_audio(rec_audio=rec_audio, ref_audio=ref_audio)
-    # display_freq_components(rec_audio / np.max(rec_audio), ref_audio / np.max(ref_audio))
+    ############### Pad 0 to the front ##########################
+    # rec_filtered_data = np.pad(rec_filtered_data.real, (15000, 0), 'constant')
+    # ref_filtered_data = np.pad(ref_filtered_data.real, (16000, 0), 'constant')
+
+
+    ############### Display audio ########################## 
+    # display_audio(rec_audio=rec_filtered_data, ref_audio=ref_filtered_data)
+    # print(len(rec_filtered_data), len(ref_filtered_data))
+    display_freq_components(rec_audio / np.max(rec_audio), ref_audio / np.max(ref_audio))
     # display_freq_components(rec_audio[:88200] / np.max(rec_audio), ref_audio[:88200] / np.max(ref_audio))
     # amp_freqs = np.abs(waveform_to_frequence(ref_audio))
-    # print(len(amp_freqs))
-    # for i in range(len(amp_freqs)):
-    #     print(amp_freqs[i])
-    # print(amp_freqs)
+    ############### Save audio
+    # import wavio
+    # wavio.write("amp06_05.wav", data=rec_filtered_data[:103400], rate=44100, sampwidth=4)
+    # wavio.write("amp08_05.wav", data=ref_filtered_data[:103400], rate=44100, sampwidth=4)

@@ -114,7 +114,7 @@ class RecRefRewardFunction:
     def onset_shape_reward(self) -> float:
         diff = self.__mel_filterbank()
         print(diff)
-        shape_reward = -min(diff / 1000, 20)
+        shape_reward = -min(diff / 1500, 20)
         # print(f"Shape diff: {diff}")
         return shape_reward
     
@@ -166,7 +166,7 @@ class RecRefRewardFunction:
         return 100 if (
             len(self._rec_hitting_timings) == len(self._ref_hitting_timings) and
             self.amplitude_reward() > 0.8 and
-            self.onset_shape_reward() > -10 and
+            self.onset_shape_reward() > -15 and
             self.hitting_timing_reward() > 0.9     # this means the timing error is smaller than 0.5 seconds
         ) else 0
     

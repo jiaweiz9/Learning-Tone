@@ -9,6 +9,7 @@ from psyonic_playing_xylophone.ros_interfaces.publisher import QPosPublisher, PA
 import rospy
 import time, wandb, os
 from psyonic_playing_xylophone.utils.reward_functions import RecRefRewardFunction
+from psyonic_playing_xylophone.utils.reward_callback import RewardUtils
 import librosa
 import prettytable as pt
 from sensor_msgs.msg import JointState
@@ -22,7 +23,7 @@ class PsyonicThumbWristEnv(gym.Env):
         super().__init__()
         self.config = config
         # action space: 0 := -10, 1 := no change, 2 := +10
-        self.action_space = gym.spaces.MultiDiscrete([6, 5])
+        self.action_space = gym.spaces.MultiDiscrete([6, 7])
 
         self.observation_space = gym.spaces.Dict({
             # 'time_embedding': gym.spaces.Box(low=-1, high=1, shape=(2,)),
@@ -100,6 +101,10 @@ class PsyonicThumbWristEnv(gym.Env):
 
         self.__setup_command_publisher()
         self.__load_reference_audio()
+        self.reward_utils = RewardUtils(
+            self.ref_audio,
+            episode_length=50,
+            )
 
     def __time_step_embedding(self) -> ArrayLike:
         return np.array([np.sin(2 * np.pi * self.time_step / self.epi_length), 
@@ -132,7 +137,7 @@ class PsyonicThumbWristEnv(gym.Env):
             ref_audio_path = self.config["reference_audio"]
         
         self.ref_audio, sr = librosa.load(ref_audio_path, sr=44100)
-        self.ref_audio = np.pad(self.ref_audio, (0, 132300 - len(self.ref_audio)), 'constant')
+        self.ref_audio = np.pad(self.ref_audio[:88200], (0, 132300 - len(self.ref_audio)), 'constant')
     
     def __setup_command_publisher(self):
         rospy.init_node('psyonic_control', anonymous=True)
@@ -188,6 +193,7 @@ class PsyonicThumbWristEnv(gym.Env):
             self.last_chunk_idx=[]
             self.step_rewards=[]
             self.num_thumb_min_step = 0
+            prev_step_rec_audio = 0
 
         self.previous_thumb_joint = self.current_thumb_joint
         self.previous_wrist_joint = self.current_wrist_joint

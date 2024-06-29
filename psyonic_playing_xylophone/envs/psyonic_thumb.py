@@ -9,6 +9,7 @@ from psyonic_playing_xylophone.ros_interfaces.publisher import QPosPublisher
 import rospy
 import time, wandb, os
 from psyonic_playing_xylophone.utils.reward_functions import RecRefRewardFunction
+from psyonic_playing_xylophone.utils.reward_callback import RewardUtils
 import librosa
 import prettytable as pt
 import random
@@ -67,6 +68,11 @@ class PsyonicThumbEnv(gym.Env):
 
         self.__setup_command_publisher()
         self.__load_reference_audio()
+
+        self.reward_utils = RewardUtils(
+            ref_audio=self.ref_audio,
+            episode_length=50,
+        )
 
     def __time_step_embedding(self) -> ArrayLike:
         return np.array([np.sin(self.time_step), 
@@ -140,6 +146,8 @@ class PsyonicThumbEnv(gym.Env):
             self.epi_start_time = time.time()
             self.last_chunk_idx=[]
             self.step_rewards=[]
+            self.prev_step_rec_audio = 0
+            
 
         self.previous_thumb_joint = self.current_thumb_joint
         self.current_thumb_joint += self._action_to_joint_movement[action]
@@ -187,7 +195,15 @@ class PsyonicThumbEnv(gym.Env):
 
         # Calculate rewards
         # 1. reward for thumb current step amplitude
-        reward = -self.config["reward_weight"]["amplitude_step"] * abs(np.mean(np.abs(curr_step_rec_audio)) - np.mean(np.abs(curr_step_ref_audio)))
+        # reward = -self.config["reward_weight"]["amplitude_step"] * abs(np.mean(np.abs(curr_step_rec_audio)) - np.mean(np.abs(curr_step_ref_audio)))
+        reward = np.array(-self.config["reward_weight"]["amplitude_step"] * self.reward_utils.step_amp_reward(
+            prev_setp_rec_audio=self.prev_step_rec_audio,
+            step_rec_audio=curr_step_rec_audio,
+            cur_step=chunk_index,
+            onset_threshold=0.1,
+            frame_range=4410,
+        ))
+        self.prev_step_rec_audio = curr_step_rec_audio
         
         self.step_rewards.append(reward.copy() / (self.config["reward_weight"]["amplitude_step"]))
         
