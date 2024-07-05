@@ -26,3 +26,14 @@ register(
     entry_point="psyonic_playing_xylophone.envs.psyonic_thumb_real:PsyonicThumbRealEnv",
     max_episode_steps=100,
 )
+
+register(
+    id="PsyonicThumbWristDoubleEnv-v0",
+    entry_point="psyonic_playing_xylophone.envs.thumb_wrist_double_hit:PsyonicThumbWristDoubleEnv",
+    max_episode_steps=100,
+)
+
+register(
+    id="PsyonicThumbDoubleEnv-v0",
+    entry_point="psyonic_playing_xylophone.envs.thumb_double_hit:PsyonicThumbDoubleEnv"
+)

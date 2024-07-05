@@ -195,7 +195,7 @@ def display_freq_components(rec_audio: ArrayLike, ref_audio: ArrayLike, sr: int 
 
 def display_audio(ref_audio, rec_audio, sr=44100) -> None:
         
-    plt.figure(figsize=(20, 6))
+    plt.figure(figsize=(20, 12))
 
     max_len = max(len(rec_audio), len(ref_audio))
     print(len(rec_audio))
@@ -203,7 +203,10 @@ def display_audio(ref_audio, rec_audio, sr=44100) -> None:
     rec_audio = np.pad(rec_audio, (0, max_len - len(rec_audio)), 'constant')
 
     time = np.arange(0, len(rec_audio)) / sr
+    plt.subplot(2, 1, 1)
     plt.plot(time, rec_audio, color='blue', alpha=0.3)
+
+    plt.subplot(2, 1, 2)
     plt.plot(time, ref_audio, color='red', alpha=0.3)
 
     # rec_idx = rec_idx * 0.02
@@ -227,7 +230,7 @@ def dtw_similarity(rec_audio: ArrayLike, ref_audio: ArrayLike) -> float:
 
 
 if __name__ == "__main__":
-    rec_audio_path = "ref_audio/xylophone_keyB/amp08_025.wav"
+    rec_audio_path = "collected_audio.wav"
     ref_audio_path = "ref_audio/xylophone_keyB/amp06_025.wav"
     rec_audio, sr = librosa.load(path=rec_audio_path, sr=44100)
     ref_audio, sr = librosa.load(path=ref_audio_path, sr=44100)
@@ -237,7 +240,7 @@ if __name__ == "__main__":
 
     # mcc_feat = python_speech_features.mfcc(rec_audio, sr)
     # # d_mfcc_feat = python_speech_features.delta(mcc_feat, 2)
-    # fbank_feat = python_speech_features.logfbank(rec_audio,sr)
+    # fbank_feat = python_speech_features.logfbank(rec_audio / np.max(rec_audio), sr)
     # print(fbank_feat[1:3, :])
 
     # filterbank_features = fbank_feat.T
@@ -248,7 +251,7 @@ if __name__ == "__main__":
 
     # mcc_feat_ref = python_speech_features.mfcc(ref_audio, sr)
     # # d_mfcc_feat_ref = python_speech_features.delta(mcc_feat, 2)
-    # fbank_feat_ref = python_speech_features.logfbank(ref_audio,sr)
+    # fbank_feat_ref = python_speech_features.logfbank(ref_audio  / np.max(ref_audio), sr)
 
     # filterbank_features_ref = fbank_feat_ref.T
     # # plt.matshow(filterbank_features)
@@ -273,17 +276,17 @@ if __name__ == "__main__":
     
 
     ############### Pad 0 to the front ##########################
-    # rec_filtered_data = np.pad(rec_filtered_data.real, (15000, 0), 'constant')
+    # rec_filtered_data = np.pad(rec_audio, (5500, 0), 'constant')
     # ref_filtered_data = np.pad(ref_filtered_data.real, (16000, 0), 'constant')
 
 
     ############### Display audio ########################## 
-    # display_audio(rec_audio=rec_filtered_data, ref_audio=ref_filtered_data)
+    display_audio(rec_audio=rec_audio[8000:96200], ref_audio=ref_audio)
     # print(len(rec_filtered_data), len(ref_filtered_data))
-    display_freq_components(rec_audio / np.max(rec_audio), ref_audio / np.max(ref_audio))
+    # display_freq_components(rec_audio / np.max(rec_audio), ref_audio / np.max(ref_audio))
     # display_freq_components(rec_audio[:88200] / np.max(rec_audio), ref_audio[:88200] / np.max(ref_audio))
     # amp_freqs = np.abs(waveform_to_frequence(ref_audio))
     ############### Save audio
-    # import wavio
-    # wavio.write("amp06_05.wav", data=rec_filtered_data[:103400], rate=44100, sampwidth=4)
+    import wavio
+    wavio.write("high06_low.wav", data=rec_audio[8000:96200], rate=44100, sampwidth=4)
     # wavio.write("amp08_05.wav", data=ref_filtered_data[:103400], rate=44100, sampwidth=4)

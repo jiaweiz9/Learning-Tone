@@ -68,7 +68,7 @@ class RewardUtils:
         max_amp_diff = np.abs(self.rec_max_amp - self.ref_max_amp)
         # max_amp = max(self.rec_max_amp, self.ref_max_amp)
         # return np.exp(-max_amp_diff * 10)
-        return 1 - max_amp_diff / self.ref_max_amp if max_amp_diff < self.ref_max_amp else 0
+        return 1 - max_amp_diff / 0.13 if max_amp_diff < 0.13 else 0
     
     def double_hit_amp_reward(self):
         assert len(self._rec_hitting_frames) == 2 and len(self._ref_hitting_frames) == 2
@@ -108,6 +108,9 @@ class RewardUtils:
 
         # mcc_feat_ref = python_speech_features.mfcc(self.ref_audio, self.sr)
         fbank_feat_ref = python_speech_features.logfbank(self.ref_audio[:88200] / self.ref_max_amp, self.sr)
+
+        print(len(fbank_feat))
+        print(len(fbank_feat_ref))
 
         diff, _ = fastdtw(fbank_feat, fbank_feat_ref, radius=5)
 
@@ -149,7 +152,7 @@ class RewardUtils:
         # print(f"timing threshold: {timing_threshold}, amplitude threshold: {amplitude_threshold}")
         return 100 if (
             len(self._rec_hitting_timings) == len(self._ref_hitting_timings) and
-            self.amplitude_reward() > 0.7 and
+            self.amplitude_reward() > 0.3 and
             self.onset_shape_reward() > -10 and
             self.hitting_timing_reward() > 0.9     # this means the timing error is smaller than 0.5 seconds
         ) else 0
@@ -163,10 +166,10 @@ class RewardUtils:
         if np.max(abs(step_rec_audio)) - np.max(abs(prev_step_rec_audio)) > onset_threshold:
             for hitting_frame in self._ref_hitting_frames:
                 if hitting_frame - frame_range <= cur_step * len(step_rec_audio) <= hitting_frame + frame_range:
-                    return 0
-            return -1
+                    return 0.0
+            return -1.0
         else:
-            return 0
+            return 0.0
 
 
 

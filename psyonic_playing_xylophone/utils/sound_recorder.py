@@ -184,7 +184,7 @@ if __name__ == "__main__":
     data_fft = np.fft.fft(data)
     freqs = np.fft.fftfreq(len(data), 1 / 44100)
     data_fft[np.abs(freqs) < 1000] = 0
-    filtered_data = np.real(np.fft.ifft(data_fft))[:88200]
+    filtered_data = np.real(np.fft.ifft(data_fft))[:]
     time_sequence = np.arange(0, len(filtered_data)) / 44100
     wavio.write("collected_audio.wav", filtered_data, rate=44100, sampwidth=4)
 

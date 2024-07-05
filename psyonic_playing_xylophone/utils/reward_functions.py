@@ -48,9 +48,11 @@ class RecRefRewardFunction:
         # data_fft[np.abs(freqs) < 1000] = 0
         # self.rec_audio = np.real(np.fft.ifft(data_fft))
 
-        self.ref_max_amp = np.max(abs(self.ref_audio))
+        self.ref_max_amp = np.max(self.ref_audio)
         print("ref_audio shape: ", self.ref_audio.shape)
         print("rec_audio shape: ", self.rec_audio.shape)
+        # print("ref max amp:", self.ref_max_amp)
+        # print("rec max amp:", self.rec_max_amp)
 
 
     def __generate_audio_strength_info(self):
@@ -87,16 +89,25 @@ class RecRefRewardFunction:
         return 1 - max_amp_diff / self.ref_max_amp if max_amp_diff < self.ref_max_amp else 0
     
     def double_hit_amp_reward(self):
-        assert len(self._rec_hitting_frames) == 2 and len(self._ref_hitting_frames) == 2
-        rec_hit_mid_frame = (self._rec_hitting_frames[0] + self._rec_hitting_frames[1]) / 2
-        ref_hit_mid_frame = (self._ref_hitting_frames[0] + self._ref_hitting_frames[1]) / 2
-        rec_amp_1 = np.max(abs(self.rec_audio[:rec_hit_mid_frame]))
-        rec_amp_2 = np.max(abs(self.rec_audio[rec_hit_mid_frame:]))
-        print(f"recorded audio hitting amplitude: {[rec_amp_1, rec_amp_2]}")
+        assert len(self._ref_hitting_frames) == 2
+        if len(self._rec_hitting_frames) >= 2:
+            print(self._rec_hitting_frames[0])
+            rec_hit_mid_frame = (self._rec_hitting_frames[0] + self._rec_hitting_frames[1]) // 2
+            ref_hit_mid_frame = (self._ref_hitting_frames[0] + self._ref_hitting_frames[1]) // 2
+            print(rec_hit_mid_frame)
+            print(ref_hit_mid_frame)
+            rec_amp_1 = np.max(abs(self.rec_audio[:rec_hit_mid_frame]))
+            rec_amp_2 = np.max(abs(self.rec_audio[rec_hit_mid_frame:]))
+            print(f"recorded audio hitting amplitude: {[rec_amp_1, rec_amp_2]}")
 
-        rec_amp_1 = np.max(abs(self.ref_audio[:rec_hit_mid_frame]))
-        rec_amp_2 = np.max(abs(self.ref_audio[rec_hit_mid_frame:]))
-        print(f"reference audio hitting amplitude: {[rec_amp_1, rec_amp_2]}")
+            ref_amp_1 = np.max(abs(self.ref_audio[:ref_hit_mid_frame]))
+            ref_amp_2 = np.max(abs(self.ref_audio[ref_hit_mid_frame:]))
+            print(f"reference audio hitting amplitude: {[ref_amp_1, ref_amp_2]}")
+            
+            amp_diff = np.abs(rec_amp_1 - ref_amp_1) + np.abs(rec_amp_2 - ref_amp_2)
+            return 1 - amp_diff / 0.3 if amp_diff < 0.3 else 0
+        else:
+            return 0
 
 
 
@@ -145,15 +156,17 @@ class RecRefRewardFunction:
             # time_diff = abs(np.sum(onset_hit_times_ref - onset_hit_times_rec))
             timing_diff = abs(np.sum(self._rec_hitting_timings - self._ref_hitting_timings))
             # return 1 - 4 * timing_diff ** 2 if timing_diff < 0.5 else 0
-            return 1 - timing_diff / 2 if timing_diff / 2 < 1 else 0
+            return 1 - timing_diff / 1 if timing_diff / 1 < 1 else 0
         return 0
     
     def success_threshold_scheduler(self):
         '''
         This function should return a value between 0 and 1, which will be used to determine the success threshold
         '''
-        timing_threshold = min(0.8 + 0.002 * self.iteration, 0.9)
-        amplitude_threshold = min(0.8 + 0.002 * self.iteration, 0.9)
+        timing_threshold = min(0.85 + 0.01 * self.iteration // 10, 0.93)
+        amplitude_threshold = min(0.85 + 0.01 * self.iteration // 10, 0.93)
+        # timing_threshold = 0.8 if self.iteration < 50 else 0.9
+        # amplitude_threshold = 0.8 if self.iteration < 50 else 0.9
         return timing_threshold, amplitude_threshold
     
 
@@ -161,15 +174,24 @@ class RecRefRewardFunction:
         '''
         Give this reward only when hitting the desired times, with good timing, and shape
         '''
+        # print("iteration in reward function:", self.iteration)
         timing_threshold, amplitude_threshold = self.success_threshold_scheduler()
         # print(f"timing threshold: {timing_threshold}, amplitude threshold: {amplitude_threshold}")
         return 100 if (
             len(self._rec_hitting_timings) == len(self._ref_hitting_timings) and
-            self.amplitude_reward() > 0.8 and
+            self.amplitude_reward() > 0.3 and
             self.onset_shape_reward() > -15 and
-            self.hitting_timing_reward() > 0.9     # this means the timing error is smaller than 0.5 seconds
+            self.hitting_timing_reward() > 0.8     # this means the timing error is smaller than 0.2 seconds
         ) else 0
     
+    def double_hit_success_reward(self):
+        return 100 if (
+            len(self._rec_hitting_timings) == len(self._ref_hitting_timings) and
+            self.double_hit_amp_reward() > 0.3 and
+            self.onset_shape_reward() > -15 and
+            self.hitting_timing_reward() > 0.7     # this means the timing error is smaller than 0.2 seconds
+        ) else 0
+
 def step_amp_reward(prev_setp_rec_audio, step_rec_audio, onset_threshold, ref_audio):
     # TODO: New Step Amp Reward
     if np.mean(abs(step_rec_audio)) - np.mean(abs(prev_setp_rec_audio)) > onset_threshold:

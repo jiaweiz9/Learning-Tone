@@ -10,7 +10,7 @@ seed: 0
 epi_length: 50
 short_epi: True # if False, the episode length is 100
 
-reference_audio: "ref_audio/xylophone_keyB/amp08_025.wav"
+reference_audio: "ref_audio/xylophone_keyB/amp03_05.wav"
 # wandb_run_id: None # if we want to continue training from a previous run, provide the run id here
 # load_model_path: None # if we want to continue training from a previous model, provide the path here
 eval_freq: 1000
@@ -29,7 +29,7 @@ papras_joint6:
 reward_weight:
   amplitude_step: 0.1
   movement: 0.00    # devided by 2 for adding wrist movements
-  amplitude: 10
+  amplitude: 30
   hitting_times: 10
   onset_shape: 0.5
   hitting_timing: 40

@@ -13,6 +13,7 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor, VecNormalize
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.utils import set_random_seed
+# from stable_baselines3.common.utils import 
 
 def make_env(env_id: str, config: dict, seed: int = 0):
     """
@@ -185,7 +186,7 @@ class TrainPPO:
     
 
 
-@hydra.main(version_base=None, config_path="psyonic_playing_xylophone/conf/thumb_wrist", config_name="train")
+@hydra.main(version_base=None, config_path="psyonic_playing_xylophone/conf/thumb_wrist_double", config_name="train")
 def launch_train(cfg: DictConfig):
     # print(cfg)
     cfg = OmegaConf.to_container(cfg)
