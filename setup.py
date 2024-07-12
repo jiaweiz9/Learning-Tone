@@ -16,6 +16,7 @@ setup(
         "pyaudio",
         "matplotlib",
         "librosa",
+        "prettytable",
         "hydra-core",
         "tqdm",
         "torch",

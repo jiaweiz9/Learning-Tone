@@ -219,8 +219,8 @@ class WristDemoEnv(gym.Env):
             # audio_data = self.sound_recorder.get_episode_audio().squeeze()[4410:]
             
             # Early reset
-            self.wrist_pos_publisher.publish_once(np.concatenate(
-                (self.initial_thumb_state[:-1], [self.thumb_min_degree]), axis=0), self.initial_wrist_state)
+            # self.wrist_pos_publisher.publish_once(np.concatenate(
+            #     (self.initial_thumb_state[:-1], [self.thumb_min_degree]), axis=0), self.initial_wrist_state)
             self.wrist_pos_publisher.publish_once(self.initial_thumb_state, self.initial_wrist_state)
 
             #self.sound_recorder.save_recording()
