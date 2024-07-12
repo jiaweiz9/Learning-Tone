@@ -58,7 +58,7 @@ class TrainPPO:
         # Initialize Wandb
         if not self.no_wandb:
             self.wandb_run = wandb.init(
-                project="Psyonic_Playing_Xylophone-sb3",
+                project="Psyonic_Playing_Xylophone-sb3 (Demo)",
                 config=config,
                 sync_tensorboard=True,
                 group="thumb_sb3",
@@ -81,13 +81,13 @@ class TrainPPO:
         # Set up checkpoint callback to save model
         self.checkpoint_callback = CheckpointCallback(
             save_freq=self.n_steps_per_update,
-            save_path=f"./results/ppo/{self.results_folder_name}",
+            save_path=f"./results/ppo/demo/{self.results_folder_name}",
             name_prefix='model',
             save_vecnormalize=True,
         )
 
         self.visualize_callback = VisualizeEpisodeCallback(
-            figures_path=f"./results/figures/{ self.results_folder_name}",
+            figures_path=f"./results/figures/demo/{ self.results_folder_name}",
             visualize_freq=self.n_steps_per_update,
             folder_name = self.results_folder_name
         )
@@ -95,7 +95,7 @@ class TrainPPO:
         self.eval_callback = EvalCallback(
             eval_env=self.eval_vec_env,
             n_eval_episodes=1,
-            best_model_save_path=f"./results/eval/{self.results_folder_name}",
+            best_model_save_path=f"./results/eval/demo/{self.results_folder_name}",
             eval_freq=config["eval_freq"],
             deterministic=True,
             render=False,
@@ -164,7 +164,7 @@ class TrainPPO:
                 ent_coef=self.ent_coef,
                 env=self.train_vec_env,
                 n_epochs=self.n_epochs,
-                tensorboard_log=f"./results/tensorboard/{self.results_folder_name}",
+                tensorboard_log=f"./results/tensorboard/demo/{self.results_folder_name}",
                 verbose=1,
                 # stats_window_size=self.n_steps / self.epi_length, # compute rollout statistics over the last iteration,
                 device=self.device

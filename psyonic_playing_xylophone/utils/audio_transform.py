@@ -230,8 +230,8 @@ def dtw_similarity(rec_audio: ArrayLike, ref_audio: ArrayLike) -> float:
 
 
 if __name__ == "__main__":
-    rec_audio_path = "collected_audio.wav"
-    ref_audio_path = "ref_audio/xylophone_keyB/amp06_025.wav"
+    rec_audio_path = "results/eval/0703_0000-kvrcb505/predicted_audio.wav"
+    ref_audio_path = "ref_audio/xylophone_keyB/double06.wav"
     rec_audio, sr = librosa.load(path=rec_audio_path, sr=44100)
     ref_audio, sr = librosa.load(path=ref_audio_path, sr=44100)
 
@@ -240,7 +240,7 @@ if __name__ == "__main__":
 
     # mcc_feat = python_speech_features.mfcc(rec_audio, sr)
     # # d_mfcc_feat = python_speech_features.delta(mcc_feat, 2)
-    # fbank_feat = python_speech_features.logfbank(rec_audio / np.max(rec_audio), sr)
+    fbank_feat = python_speech_features.logfbank(rec_audio / np.max(rec_audio), sr)
     # print(fbank_feat[1:3, :])
 
     # filterbank_features = fbank_feat.T
@@ -251,7 +251,7 @@ if __name__ == "__main__":
 
     # mcc_feat_ref = python_speech_features.mfcc(ref_audio, sr)
     # # d_mfcc_feat_ref = python_speech_features.delta(mcc_feat, 2)
-    # fbank_feat_ref = python_speech_features.logfbank(ref_audio  / np.max(ref_audio), sr)
+    fbank_feat_ref = python_speech_features.logfbank(ref_audio  / np.max(ref_audio), sr)
 
     # filterbank_features_ref = fbank_feat_ref.T
     # # plt.matshow(filterbank_features)
@@ -281,12 +281,12 @@ if __name__ == "__main__":
 
 
     ############### Display audio ########################## 
-    display_audio(rec_audio=rec_audio[8000:96200], ref_audio=ref_audio)
+    display_audio(rec_audio=fbank_feat, ref_audio=fbank_feat_ref)
     # print(len(rec_filtered_data), len(ref_filtered_data))
     # display_freq_components(rec_audio / np.max(rec_audio), ref_audio / np.max(ref_audio))
     # display_freq_components(rec_audio[:88200] / np.max(rec_audio), ref_audio[:88200] / np.max(ref_audio))
     # amp_freqs = np.abs(waveform_to_frequence(ref_audio))
     ############### Save audio
-    import wavio
-    wavio.write("high06_low.wav", data=rec_audio[8000:96200], rate=44100, sampwidth=4)
+    # import wavio
+    # wavio.write("high06_low.wav", data=rec_audio[8000:96200], rate=44100, sampwidth=4)
     # wavio.write("amp08_05.wav", data=ref_filtered_data[:103400], rate=44100, sampwidth=4)

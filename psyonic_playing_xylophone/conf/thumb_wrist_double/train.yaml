@@ -10,7 +10,7 @@ seed: 0
 epi_length: 50
 short_epi: True # if False, the episode length is 100
 
-reference_audio: "ref_audio/xylophone_keyB/high06_low03.wav"
+reference_audio: "ref_audio/xylophone_keyB/double06.wav"
 # wandb_run_id: None # if we want to continue training from a previous run, provide the run id here
 # load_model_path: None # if we want to continue training from a previous model, provide the path here
 eval_freq: 1000

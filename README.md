@@ -89,7 +89,15 @@ data:
 - -10
 "
 ```
-
+rostopic pub xylophone_demo/double_hit std_msgs/Bool "layout:
+  dim:
+  - label: ''
+    size: 0
+    stride: 0
+  data_offset: 0
+data:
+- True
+"
 
 
 ## Results

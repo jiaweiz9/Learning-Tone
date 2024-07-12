@@ -93,7 +93,7 @@ class TestPPO:
         plt.close()
 
 
-@hydra.main(version_base=None, config_path="psyonic_playing_xylophone/conf/thumb_double", config_name="test")
+@hydra.main(version_base=None, config_path="psyonic_playing_xylophone/conf/thumb_wrist", config_name="test")
 def launch_test(cfg: DictConfig) -> None:
 
     cfg = OmegaConf.to_container(cfg, resolve=True)

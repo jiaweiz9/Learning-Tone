@@ -37,3 +37,8 @@ register(
     id="PsyonicThumbDoubleEnv-v0",
     entry_point="psyonic_playing_xylophone.envs.thumb_double_hit:PsyonicThumbDoubleEnv"
 )
+
+register(
+    id="WristDemoEnv-v0",
+    entry_point="psyonic_playing_xylophone.envs.demo_env:WristDemoEnv"
+)

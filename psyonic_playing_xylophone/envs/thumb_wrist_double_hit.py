@@ -23,7 +23,7 @@ class PsyonicThumbWristDoubleEnv(gym.Env):
         super().__init__()
         self.config = config
         # action space: 0 := -10, 1 := no change, 2 := +10
-        self.action_space = gym.spaces.MultiDiscrete([6, 7])
+        self.action_space = gym.spaces.MultiDiscrete([6, 5])
 
         self.observation_space = gym.spaces.Dict({
             # 'time_embedding': gym.spaces.Box(low=-1, high=1, shape=(2,)),
@@ -48,11 +48,11 @@ class PsyonicThumbWristDoubleEnv(gym.Env):
         self._action_to_wrist_movement = {
             0: -0.075,
             1: -0.0375,
-            2: -0.0185,
-            3: 0,
-            4: 0.0185,
-            5: 0.0375,
-            6: 0.075
+            # 2: -0.0185,
+            2: 0,
+            # 4: 0.0185,
+            3: 0.0375,
+            4: 0.075
         }
         
         ####### amp043
@@ -295,7 +295,7 @@ class PsyonicThumbWristDoubleEnv(gym.Env):
 
 
         if np.max(curr_step_rec_audio) > self.prev_step_rec_audio + 0.1:
-            isWithinRange, idx = self.isTimingWithinRange(rec_audio_chunk_idx=chunk_index, range=10)
+            isWithinRange, idx = self.isTimingWithinRange(rec_audio_chunk_idx=chunk_index, range=7)
             if isWithinRange and ((self.firstInRange1 and idx == 0) or (self.firstInRange2 and idx == 1)):
                 reward = (-abs(self._ref_hitting_frames[idx] // 882 - chunk_index) / 20 + 1) * np.array(5.0) * self.config["reward_weight"]["amplitude_step"]
                 if self.firstInRange1 and idx == 0:
