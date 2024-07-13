@@ -203,10 +203,10 @@ def display_audio(ref_audio, rec_audio, sr=44100) -> None:
     rec_audio = np.pad(rec_audio, (0, max_len - len(rec_audio)), 'constant')
 
     time = np.arange(0, len(rec_audio)) / sr
-    plt.subplot(2, 1, 1)
+    # plt.subplot(2, 1, 1)
     plt.plot(time, rec_audio, color='blue', alpha=0.3)
 
-    plt.subplot(2, 1, 2)
+    # plt.subplot(2, 1, 2)
     plt.plot(time, ref_audio, color='red', alpha=0.3)
 
     # rec_idx = rec_idx * 0.02
@@ -230,8 +230,8 @@ def dtw_similarity(rec_audio: ArrayLike, ref_audio: ArrayLike) -> float:
 
 
 if __name__ == "__main__":
-    rec_audio_path = "results/eval/0703_0000-kvrcb505/predicted_audio.wav"
-    ref_audio_path = "ref_audio/xylophone_keyB/double06.wav"
+    rec_audio_path = "results/eval/demo/0627_1720-5q6507tv-thumb045_05/predicted_audio.wav"
+    ref_audio_path = "ref_audio/xylophone_keyB/amp043_05.wav"
     rec_audio, sr = librosa.load(path=rec_audio_path, sr=44100)
     ref_audio, sr = librosa.load(path=ref_audio_path, sr=44100)
 
@@ -240,7 +240,8 @@ if __name__ == "__main__":
 
     # mcc_feat = python_speech_features.mfcc(rec_audio, sr)
     # # d_mfcc_feat = python_speech_features.delta(mcc_feat, 2)
-    fbank_feat = python_speech_features.logfbank(rec_audio / np.max(rec_audio), sr)
+    fbank_feat = python_speech_features.logfbank(rec_audio / np.max(rec_audio), sr, nfft=1024
+                                                 )
     # print(fbank_feat[1:3, :])
 
     # filterbank_features = fbank_feat.T
@@ -251,7 +252,7 @@ if __name__ == "__main__":
 
     # mcc_feat_ref = python_speech_features.mfcc(ref_audio, sr)
     # # d_mfcc_feat_ref = python_speech_features.delta(mcc_feat, 2)
-    fbank_feat_ref = python_speech_features.logfbank(ref_audio  / np.max(ref_audio), sr)
+    fbank_feat_ref = python_speech_features.logfbank(ref_audio  / np.max(ref_audio), sr, nfft=1024)
 
     # filterbank_features_ref = fbank_feat_ref.T
     # # plt.matshow(filterbank_features)

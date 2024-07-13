@@ -41,9 +41,9 @@ class PsyonicThumbWristEnv(gym.Env):
         self._action_to_thumb_movement = {
             0: -20,
             1: -10,
-            2: -5,
-            3: 0,
-            # 3: 5,
+            # 2: -5,
+            2: 0,
+            3: 5,
             4: 10,
             5: 20
         }

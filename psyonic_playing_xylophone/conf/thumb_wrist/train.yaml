@@ -17,7 +17,7 @@ eval_freq: 1000
 random_init: False
 
 psyonic:
-  initial_state: [50, 70 , 110, 115, 50, -10]
+  initial_state: [90, 90 , 110, 115, 50, -10]
   max_degree: -10
   min_degree: -40
 

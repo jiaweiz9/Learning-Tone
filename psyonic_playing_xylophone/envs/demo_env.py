@@ -42,8 +42,9 @@ class WristDemoEnv(gym.Env):
             self._action_to_thumb_movement = {
                 0: -20,
                 1: -10,
-                2: -5,
-                3: 0,
+                # 2: -5,
+                2: 0,
+                3: 5,
                 4: 10,
                 5: 10,
             }
@@ -66,7 +67,7 @@ class WristDemoEnv(gym.Env):
         }
         
 
-        self.initial_thumb_state = [50, 70 , 110, 115, 50, -10]
+        self.initial_thumb_state = [90, 90 , 110, 115, 50, -10]
         self.initial_wrist_state = [0.1]
         if isinstance(self.initial_thumb_state, np.ndarray) is False or isinstance(self.initial_wrist_state, np.ndarray) is False:
             self.initial_thumb_state = np.array(self.initial_thumb_state)

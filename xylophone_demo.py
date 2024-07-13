@@ -17,7 +17,7 @@ class WristDemo:
     def __init__(self) -> None:
         self.env_id = "WristDemoEnv-v0"
         
-        self.load_single_hit_path = "results/model_demo/single_hit.zip"
+        self.load_single_hit_path = "results/model_demo/single_hit_1.zip"
 
         self.load_double_hit_path = "results/model_demo/double_hit.zip"
 
