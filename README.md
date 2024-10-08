@@ -57,3 +57,5 @@ python psyonic_playing_xylopone/train.py
 <p align="center">
   <img src="/docs/video/training_process.gif" alt="training_process">
 </p>
+
+https://github.com/user-attachments/assets/0a8bdfb8-f3a4-4113-a754-26d3d3cc21e9
