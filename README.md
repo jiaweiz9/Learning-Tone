@@ -59,10 +59,6 @@ python psyonic_playing_xylopone/train.py
 </p>
 
 ### Music Performing
-<p align="center">
-  <video width="60%" controls>
-    <source src="https://github.com/user-attachments/assets/0a8bdfb8-f3a4-4113-a754-26d3d3cc21e9" type="video/mp4">
-    Your browser does not support the video tag.
-  </video>
-</p>
+https://github.com/user-attachments/assets/0a8bdfb8-f3a4-4113-a754-26d3d3cc21e9
+
 
