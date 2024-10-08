@@ -10,3 +10,4 @@ results/*
 !results/figures/0620_2225-pj297tou/
 !results/audios/0620_2225-pj297tou/
 !results/model_demo
+/data/*
