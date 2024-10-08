@@ -54,12 +54,3 @@ python psyonic_playing_xylopone/train.py
     - generated: `results/audios/wrist_high.wav`
 
 
-## Video
-<p align="center">
-  <video width="80%" controls>
-    <source src="/docs/video/xylophone.mp4" type="video/mp4">
-    Your browser does not support the video tag.
-  </video>
-</p>
-
-
