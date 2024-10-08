@@ -53,4 +53,7 @@ python psyonic_playing_xylopone/train.py
     - reference: `ref_audio/xylophone_keyB/amp06_013.wav`
     - generated: `results/audios/wrist_high.wav`
 
-
+### Training Process
+<p align="center">
+  <img src="/docs/video/training_process.gif" alt="training_process">
+</p>
